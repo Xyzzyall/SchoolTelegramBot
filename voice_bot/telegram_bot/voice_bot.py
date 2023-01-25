@@ -6,7 +6,7 @@ from structlog.contextvars import bound_contextvars
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-from voice_bot.telegram_bot.base_handler import BaseHandler
+from voice_bot.telegram_bot.base_handler import BaseUpdateHandler
 from voice_bot.telegram_bot.commands import _COMMANDS
 from voice_bot.telegram_di_scope import _TelegramUpdate
 from voice_bot.voice_bot_configurator import VoiceBotConfigurator
@@ -32,7 +32,7 @@ class VoiceBot:
 
 
 class _HandlerWrapper:
-    def __init__(self, target_handler: type[BaseHandler], injector: Injector, logger):
+    def __init__(self, target_handler: type[BaseUpdateHandler], injector: Injector, logger):
         self._logger = logger
         self._target_handler = target_handler
         self._injector = injector

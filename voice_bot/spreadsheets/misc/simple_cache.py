@@ -23,7 +23,7 @@ class SimpleCache:
                 if key in self._cache:
                     val = self._cache[key]
                     if val.creation_date + val.duration >= datetime.now():
-                        return val
+                        return val.value
                 new_val = await func(*args, **kwargs)
                 self._cache[key] = _CacheEntry(new_val, datetime.now(), lifespan)
                 return new_val

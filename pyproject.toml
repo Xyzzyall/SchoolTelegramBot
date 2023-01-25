@@ -2,7 +2,7 @@
 name = "schooltelegrambot"
 version = "0.1.0"
 description = ""
-authors = ["xyzzy <xyzzyalL@outlook.com>"]
+authors = ["xyzzy <xyzzyall@outlook.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]

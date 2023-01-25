@@ -6,7 +6,11 @@ from datetime import datetime
 class ScheduleRecord:
     user_id: str
     is_online: bool
-    day_of_the_week: str
-    time_start: datetime
-    time_end: datetime
+    day_of_the_week: int
+    time_start: str
+    time_end: str
+    absolute_start_date: datetime = None
     description: str = ""
+
+
+

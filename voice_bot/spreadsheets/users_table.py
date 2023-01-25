@@ -9,7 +9,7 @@ from voice_bot.spreadsheets.models.user import User
 @singleton
 class UsersTable(CachedTable, ABC):
     @abstractmethod
-    async def authorize_user(self, telegram_login: str, secret_word: str) -> bool:
+    async def authorize_user(self, telegram_login: str, secret_word: str) -> (bool, User | None):
         pass
 
     @abstractmethod
