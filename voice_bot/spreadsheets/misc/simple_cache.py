@@ -1,3 +1,4 @@
+import functools
 from dataclasses import dataclass
 from datetime import timedelta, datetime
 from typing import TypeVar
@@ -11,13 +12,14 @@ class _CacheEntry:
 
 
 class SimpleCache:
-    T = TypeVar('T')
+    T = TypeVar('T', bound=callable)
 
     def __init__(self):
         self._cache = dict[str, _CacheEntry]()
 
     def cache_decorator(self, key_format_str: str, lifespan: timedelta):
-        def decorator(func):
+        def decorator(func: SimpleCache.T) -> SimpleCache.T:
+            @functools.wraps(func)
             async def wrapper(*args, **kwargs):
                 key = key_format_str.format(*args, **kwargs)
                 if key in self._cache:

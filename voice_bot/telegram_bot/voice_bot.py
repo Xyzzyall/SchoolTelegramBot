@@ -6,8 +6,7 @@ from structlog.contextvars import bound_contextvars
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-from voice_bot.telegram_bot.base_handler import BaseUpdateHandler
-from voice_bot.telegram_bot.commands import _COMMANDS
+from voice_bot.telegram_bot.commands import _COMMANDS, CommandDefinition
 from voice_bot.telegram_di_scope import _TelegramUpdate
 from voice_bot.voice_bot_configurator import VoiceBotConfigurator
 
@@ -26,22 +25,26 @@ class VoiceBot:
         self._application.run_polling()
 
     def _wire_commands(self) -> None:
-        for cmd in _COMMANDS:
-            wrapper = _HandlerWrapper(cmd.handler, self._injector, self._logger)
-            self._application.add_handler(CommandHandler(cmd.command_nade, wrapper.handle))
+        for name, cmd in _COMMANDS.items():
+            wrapper = _HandlerWrapper(cmd, self._injector, self._logger)
+            self._application.add_handler(CommandHandler(name, wrapper.handle))
 
 
 class _HandlerWrapper:
-    def __init__(self, target_handler: type[BaseUpdateHandler], injector: Injector, logger):
+    def __init__(self, cmd_def: CommandDefinition, injector: Injector, logger):
+        self._cmd_def = cmd_def
         self._logger = logger
-        self._target_handler = target_handler
         self._injector = injector
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         with bound_contextvars(local_request_id=str(uuid.uuid4())):
-            await self._logger.ainfo("Got update", telegram_update=update.to_json())
-            handler = self._injector.get(self._target_handler, _TelegramUpdate)
-            await handler.handle(update, context)
-
-
+            try:
+                await self._logger.ainfo("Got update", telegram_update=update.to_json())
+                for claim in self._cmd_def.claims:
+                    if not await self._injector.get(claim, _TelegramUpdate).process(update, context):
+                        return
+                handler = self._injector.get(self._cmd_def.handler, _TelegramUpdate)
+                await handler.handle(update, context)
+            except Exception as e:
+                await self._logger.aexception(e)
 

@@ -5,3 +5,14 @@ REMINDERS_OPTIONS = {
     "за 15 минут": timedelta(minutes=15),
     "за 30 минут": timedelta(minutes=30)
 }
+
+DAYS_OF_THE_WEEK = [
+    None,
+    "понедельник",
+    "вторник",
+    "среда",
+    "четверг",
+    "пятница",
+    "суббота",
+    "воскресенье"
+]

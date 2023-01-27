@@ -1,4 +1,5 @@
 from datetime import timedelta
+from typing import Callable
 
 import structlog
 from injector import inject
@@ -21,17 +22,6 @@ class GoogleUsersTable(UsersTable):
 
     def delete_cache(self):
         simple_cache.delete_key(self._TABLE_CACHE_KEY)
-
-    async def _rewrite_user(self, user: User):
-        real_row = user.row_id + 3
-        gs_sheet.worksheet("Ученики").batch_update(
-            [{
-                'range': f'A{real_row}:F{real_row}',
-                'values': [[user.unique_id, user.fullname, user.telegram_login, user.secret_code, '',
-                            self._timedeltas_to_cell(user.schedule_reminders)]],
-            }]
-        )
-        self.delete_cache()
 
     @simplecache(_TABLE_CACHE_KEY, timedelta(days=365))
     async def _fetch_users_table(self) -> list[User]:
@@ -69,23 +59,23 @@ class GoogleUsersTable(UsersTable):
                 res_list.append(k)
         return ', '.join(res_list)
 
-    async def get_user(self, telegram_login: str) -> User | None:
-        pass
+    async def get_user(self, filter_lambda: Callable[[User], bool]) -> User | None:
+        users = await self.get_users()
+        filtered = list(filter(filter_lambda, users))
+        if len(filtered) > 1 or len(filtered) == 0:
+            return None
+        return filtered[0]
 
-    async def authorize_user(self, telegram_login: str, secret_word: str) -> (bool, User | None):
-        if not secret_word:
-            return False, None
+    async def get_users(self) -> list[User]:
+        return await self._fetch_users_table()
 
-        users = await self._fetch_users_table()
-        user_with_secret = list(filter(lambda v: v.secret_code == secret_word, users))
-        if len(user_with_secret) == 0:
-            return False, None
-        if len(user_with_secret) > 1:
-            await self._logger.awarning("Duplicate secret words", secret_word=secret_word)
-            return False, None
-
-        user = user_with_secret[0]
-        user.secret_code = ''
-        user.telegram_login = telegram_login
-        await self._rewrite_user(user)
-        return True, user
+    async def rewrite_user(self, user: User):
+        real_row = user.row_id + 3
+        gs_sheet.worksheet("Ученики").batch_update(
+            [{
+                'range': f'A{real_row}:F{real_row}',
+                'values': [[user.unique_id, user.fullname, user.telegram_login, user.secret_code, '',
+                            self._timedeltas_to_cell(user.schedule_reminders)]],
+            }]
+        )
+        self.delete_cache()
