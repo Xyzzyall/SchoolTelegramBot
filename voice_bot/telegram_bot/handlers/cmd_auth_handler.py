@@ -5,8 +5,6 @@ from telegram.ext import ContextTypes
 
 from voice_bot.services.message_builder import MessageBuilder
 from voice_bot.services.user_authorization import UserAuthorization
-from voice_bot.spreadsheets.params_table import ParamsTable
-from voice_bot.spreadsheets.users_table import UsersTable
 from voice_bot.telegram_bot.base_handler import BaseUpdateHandler
 from voice_bot.telegram_di_scope import telegramupdate
 

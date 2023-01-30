@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 from injector import inject
 
 from voice_bot.spreadsheets.models.schedule_record import ScheduleRecord
@@ -22,3 +24,9 @@ class Schedule:
         if not for_user:
             return list[ScheduleRecord](*schedule.values())
         return schedule[for_user]
+
+    @staticmethod
+    def get_week_dates(date: datetime) -> (datetime, datetime):
+        start = date - timedelta(days=date.weekday())
+        end = start + timedelta(days=6)
+        return start.date(), end.date()

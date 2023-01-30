@@ -5,7 +5,7 @@ import structlog
 from injector import inject
 
 from voice_bot.constants import REMINDERS_OPTIONS
-from voice_bot.spreadsheets.google_cloud.gspread import gs_sheet
+from voice_bot.spreadsheets.google_cloud.gspread import GspreadClient
 from voice_bot.spreadsheets.misc import simple_cache
 from voice_bot.spreadsheets.misc.simple_cache import simplecache
 from voice_bot.spreadsheets.models.user import User
@@ -14,9 +14,9 @@ from voice_bot.spreadsheets.users_table import UsersTable
 
 class GoogleUsersTable(UsersTable):
     @inject
-    def __init__(self):
+    def __init__(self, gspread: GspreadClient):
+        self._gspread = gspread
         self._logger = structlog.get_logger(class_name=__class__.__name__)
-        pass
 
     _TABLE_CACHE_KEY = "google_users"
 
@@ -25,7 +25,7 @@ class GoogleUsersTable(UsersTable):
 
     @simplecache(_TABLE_CACHE_KEY, timedelta(days=365))
     async def _fetch_users_table(self) -> list[User]:
-        cells = gs_sheet.worksheet("Ученики").get_values()
+        cells = self._gspread.gs_settings_sheet.worksheet("Ученики").get_values()
         users = list[User]()
         for i, row in enumerate(cells[2:]):
             if not row[0]:
@@ -44,6 +44,8 @@ class GoogleUsersTable(UsersTable):
     async def _parse_schedule_reminders(self, text: str) -> set[timedelta]:
         res = set[timedelta]()
         for subtext in text.split(', '):
+            if not subtext:
+                continue
             key = subtext.lower()
             if key not in REMINDERS_OPTIONS:
                 await self._logger.awarning("Unknown reminder option key", missing_key=key)
@@ -71,7 +73,7 @@ class GoogleUsersTable(UsersTable):
 
     async def rewrite_user(self, user: User):
         real_row = user.row_id + 3
-        gs_sheet.worksheet("Ученики").batch_update(
+        self._gspread.gs_settings_sheet.worksheet("Ученики").batch_update(
             [{
                 'range': f'A{real_row}:F{real_row}',
                 'values': [[user.unique_id, user.fullname, user.telegram_login, user.secret_code, '',

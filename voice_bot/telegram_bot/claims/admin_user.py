@@ -14,7 +14,7 @@ class AdminUser(BaseClaim):
         self._user_auth = user_auth
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
-        return await self._user_auth.try_authorize_admin(update.message.from_user.username)
+        return await self._user_auth.try_authorize_admin(update.effective_user.username)
 
     async def on_fail(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text("Команда доступна только администраторам")

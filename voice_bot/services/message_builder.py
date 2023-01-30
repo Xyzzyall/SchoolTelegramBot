@@ -1,12 +1,11 @@
-from datetime import datetime
-
 from injector import inject
 
+from voice_bot.constants import DAYS_OF_THE_WEEK
 from voice_bot.spreadsheets.models.schedule_record import ScheduleRecord
+from voice_bot.spreadsheets.models.user import User
 from voice_bot.spreadsheets.params_table import ParamsTable
 from voice_bot.spreadsheets.users_table import UsersTable
 from voice_bot.telegram_di_scope import telegramupdate
-from voice_bot.constants import DAYS_OF_THE_WEEK
 
 
 @telegramupdate
@@ -20,12 +19,16 @@ class MessageBuilder:
     def push(self, key: str, val: str):
         self._context[key] = val
 
+    def push_user(self, user: User):
+        self.push("ученик_фио", user.fullname)
+        self.push("ученик_идентификатор", user.unique_id)
+        self.push("ученик_логин", user.telegram_login)
+
     async def push_schedule_record(self, schedule_record: ScheduleRecord):
         user = await self._users.get_user(lambda x: x.unique_id == schedule_record.user_id)
         if not user:
             raise KeyError(f"User with unique_id={schedule_record.user_id} is not found")
-        self.push("занятие_ученик_идентификатор", schedule_record.user_id)
-        self.push("занятие_ученик_фио", user.fullname)
+        self.push_user(user)
         self.push("занятие_время", f"с {schedule_record.time_start} до {schedule_record.time_end}")
         self.push("занятие_время_начала", schedule_record.time_start)
         self.push("занятие_время_конца", schedule_record.time_end)

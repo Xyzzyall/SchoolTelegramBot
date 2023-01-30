@@ -2,8 +2,8 @@ from injector import singleton, inject, Injector
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from voice_bot.telegram_bot.commands import COMMANDS
 from voice_bot.telegram_di_scope import _TelegramUpdate
-from voice_bot.telegram_bot.commands import _COMMANDS
 
 
 @singleton
@@ -15,10 +15,10 @@ class CommandsService:
     async def check_claims_for_command(self, cmd_name: str,
                                        update: Update,
                                        context: ContextTypes.DEFAULT_TYPE) -> bool:
-        if cmd_name not in _COMMANDS:
+        if cmd_name not in COMMANDS:
             raise KeyError(f"Command {cmd_name} is not found")
 
-        cmd_def = _COMMANDS[cmd_name]
+        cmd_def = COMMANDS[cmd_name]
 
         for claim in cmd_def.claims:
             if not await self._injector.get(claim, _TelegramUpdate).handle(update, context):

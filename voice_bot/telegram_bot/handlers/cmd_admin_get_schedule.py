@@ -1,17 +1,17 @@
 from datetime import datetime
 from itertools import groupby
-from typing import Callable, Iterable
+from typing import Iterable
 
 from injector import inject
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from voice_bot.constants import DAYS_OF_THE_WEEK
 from voice_bot.services.message_builder import MessageBuilder
 from voice_bot.services.schedule import Schedule
 from voice_bot.spreadsheets.models.schedule_record import ScheduleRecord
 from voice_bot.telegram_bot.base_handler import BaseUpdateHandler
 from voice_bot.telegram_di_scope import telegramupdate
-from voice_bot.constants import DAYS_OF_THE_WEEK
 
 
 @telegramupdate

@@ -11,11 +11,15 @@ from voice_bot.telegram_di_scope import telegramupdate
 @telegramupdate
 class AuthorizedUser(BaseClaim):
     @inject
-    def __init__(self, auth_service: UserAuthorization):
+    def __init__(self, auth_service: UserAuthorization, msg_builder: MessageBuilder):
+        self._msg_builder = msg_builder
         self._auth_service = auth_service
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
-        return bool(await self._auth_service.try_authorize(update.message.from_user.username))
+        user = await self._auth_service.try_authorize(update.effective_user.username)
+        if user:
+            self._msg_builder.push_user(user)
+        return bool(user)
 
     async def on_fail(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text("Команда недоступна для неизвестных пользователей")

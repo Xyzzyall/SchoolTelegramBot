@@ -17,3 +17,10 @@ class ScheduleTable(ABC):
     async def get_standard_schedule(self) -> dict[str, list[ScheduleRecord]]:
         pass
 
+    @abstractmethod
+    async def create_schedule_sheet_for_week(self, monday: datetime):
+        pass
+
+    @abstractmethod
+    async def get_all_schedule_sheets(self) -> list[str]:
+        pass

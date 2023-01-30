@@ -7,7 +7,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.11"
-python-telegram-bot = {extras = ["job-queue"], version = "^20.0"}
+python-telegram-bot = {extras = ["job-queue", "callback-data"], version = "^20.0"}
 injector = "^0.20.1"
 structlog = "^22.3.0"
 gspread = "^5.7.2"

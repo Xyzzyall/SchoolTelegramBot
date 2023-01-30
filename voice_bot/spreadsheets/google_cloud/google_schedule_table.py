@@ -1,19 +1,26 @@
 from datetime import datetime, timedelta
 
-from voice_bot.spreadsheets.google_cloud.gspread import gs_sheet
+from injector import inject
+
+from voice_bot.spreadsheets.google_cloud.gspread import GspreadClient
 from voice_bot.spreadsheets.misc.simple_cache import simplecache
 from voice_bot.spreadsheets.models.schedule_record import ScheduleRecord
 from voice_bot.spreadsheets.schedule_table import ScheduleTable
 
 
 class GoogleScheduleTable(ScheduleTable):
+    _STANDARD_SCHEDULE_TABLE_NAME = "Стандарт"
+
+    @inject
+    def __init__(self, gspread: GspreadClient):
+        self._gspread = gspread
 
     async def get_standard_schedule(self) -> dict[str, list[ScheduleRecord]]:
-        return await self._get_schedule_from_table("Стандартное расписание")
+        return await self._get_schedule_from_table(self._STANDARD_SCHEDULE_TABLE_NAME)
 
     @simplecache("google_schedule_{}", timedelta(minutes=10))
     async def _get_schedule_from_table(self, table_name: str) -> dict[str, list[ScheduleRecord]]:
-        values = gs_sheet.worksheet(table_name).get_values()
+        values = self._gspread.gs_schedule_sheet.worksheet(table_name).get_values()
         res = dict[str, list[ScheduleRecord]]()
 
         for row in values[2:]:
@@ -41,4 +48,16 @@ class GoogleScheduleTable(ScheduleTable):
 
     async def get_schedule_for_timespan(self, day_start: datetime, day_end: datetime) -> dict[str, list[ScheduleRecord]]:
         pass
+
+    async def create_schedule_sheet_for_week(self, monday: datetime):
+        pass
+
+    async def get_all_schedule_sheets(self) -> list[str]:
+        res = list[str]()
+        worksheets = self._gspread.gs_schedule_sheet.worksheets()
+        for worksheet in worksheets:
+            if worksheet.title.lower() == self._STANDARD_SCHEDULE_TABLE_NAME.lower():
+                continue
+            res.append(worksheet.title)
+        return res
 
