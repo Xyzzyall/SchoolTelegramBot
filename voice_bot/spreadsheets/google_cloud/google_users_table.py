@@ -23,22 +23,43 @@ class GoogleUsersTable(UsersTable):
     def delete_cache(self):
         simple_cache.delete_key(self._TABLE_CACHE_KEY)
 
-    @simplecache(_TABLE_CACHE_KEY, timedelta(days=365))
-    async def _fetch_users_table(self) -> list[User]:
+    _USER_LAYOUT = {
+        "Уникальное имя": "unique_id",
+        "ФИО": "fullname",
+        "Логин Телеграм": "telegram_login",
+        "Кодовое слово": "secret_code",
+        "Напоминания о занятии": "schedule_reminders"
+    }
+
+    def _parse_layout(self, head_row: list[str]) -> dict[str, int]:
+        res: dict[str, int] = {}
+        for i, cell in enumerate(head_row):
+            if cell not in self._USER_LAYOUT:
+                continue
+            res[self._USER_LAYOUT[cell]] = i
+        return res
+
+    async def _fetch_users_table_nocache(self) -> (dict[str, int], list[User]):
         cells = self._gspread.gs_settings_sheet.worksheet("Ученики").get_values()
         users = list[User]()
+        layout = self._parse_layout(cells[1])
         for i, row in enumerate(cells[2:]):
-            if not row[0]:
+            if not row[layout["unique_id"]]:
                 continue
             new_user = User(
                 row_id=i,
-                unique_id=row[0],
-                fullname=row[1],
-                telegram_login=None if row[2] == '' else row[2],
-                secret_code=None if row[3] == '' else row[3],
-                schedule_reminders=await self._parse_schedule_reminders(row[5])
+                unique_id=row[layout["unique_id"]],
+                fullname=row[layout["fullname"]],
+                telegram_login=row[layout["telegram_login"]],
+                secret_code=row[layout["secret_code"]],
+                schedule_reminders=await self._parse_schedule_reminders(row[layout["schedule_reminders"]])
             )
             users.append(new_user)
+        return layout, users
+
+    @simplecache(_TABLE_CACHE_KEY, timedelta(days=365))
+    async def _fetch_users_table(self) -> list[User]:
+        _, users = await self._fetch_users_table_nocache()
         return users
 
     async def _parse_schedule_reminders(self, text: str) -> set[timedelta]:
@@ -72,12 +93,21 @@ class GoogleUsersTable(UsersTable):
         return await self._fetch_users_table()
 
     async def rewrite_user(self, user: User):
-        real_row = user.row_id + 3
+        layout, users_reloaded = await self._fetch_users_table_nocache()
+        reloaded_user = next(filter(lambda x: x.unique_id == user.unique_id, users_reloaded))
+        real_row = reloaded_user.row_id + 3
+        resulting_array = 26 * ['']
+
+        resulting_array[layout["unique_id"]] = user.unique_id
+        resulting_array[layout["fullname"]] = user.fullname
+        resulting_array[layout["telegram_login"]] = user.telegram_login
+        resulting_array[layout["secret_code"]] = user.secret_code
+        resulting_array[layout["schedule_reminders"]] = self._timedeltas_to_cell(user.schedule_reminders)
+
         self._gspread.gs_settings_sheet.worksheet("Ученики").batch_update(
             [{
-                'range': f'A{real_row}:F{real_row}',
-                'values': [[user.unique_id, user.fullname, user.telegram_login, user.secret_code, '',
-                            self._timedeltas_to_cell(user.schedule_reminders)]],
+                'range': f'A{real_row}:Z{real_row}',
+                'values': [resulting_array],
             }]
         )
         self.delete_cache()

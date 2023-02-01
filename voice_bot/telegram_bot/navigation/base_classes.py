@@ -35,7 +35,15 @@ class BaseNavigation(ABC):
 
 
 class BaseAction(BaseNavigation, ABC):
-    pass
+    @abstractmethod
+    async def handle_action(self):
+        pass
+
+    async def handle(self) -> NavigationContext | None:
+        await self.handle_action()
+        self.nav_context.tree_path.pop()
+        return self.nav_context
+
 
 @dataclass
 class _TreeEntry:
@@ -45,7 +53,7 @@ class _TreeEntry:
     children: dict[str, "_TreeEntry"] = field(default_factory=dict)
     title_override: str | None = None
     inner_text_template_override: str | None = None
-    kwargs: dict[str, str] = field(default_factory=dict)
+    context_vars: dict[str, str] = field(default_factory=dict)
 
 
 NavigationTree = list[_TreeEntry]

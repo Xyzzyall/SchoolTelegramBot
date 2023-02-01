@@ -6,6 +6,7 @@ from voice_bot.spreadsheets.users_table import UsersTable
 from voice_bot.telegram_di_scope import telegramupdate
 
 
+# todo rename this class to UserRegistration and move authorization logic to claims
 @telegramupdate
 class UserAuthorization:
     @inject

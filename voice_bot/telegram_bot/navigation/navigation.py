@@ -1,13 +1,14 @@
-import json
 from itertools import groupby
 
 import structlog
+import telegram.error
 from injector import singleton, Injector, inject
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
 from voice_bot.services.message_builder import MessageBuilder
 from voice_bot.telegram_bot.navigation.base_classes import NavigationContext, BaseView, _ButtonStab, NavigationTree
+from voice_bot.telegram_bot.navigation.misc.callback_data_codec import CallbackDataCodec
 from voice_bot.telegram_bot.navigation.nav_tree import _TreeEntry
 from voice_bot.telegram_di_scope import _TelegramUpdate
 
@@ -15,13 +16,17 @@ from voice_bot.telegram_di_scope import _TelegramUpdate
 @singleton
 class Navigation:
     @inject
-    def __init__(self, injector: Injector, msg_builder: MessageBuilder):
+    def __init__(self, injector: Injector, msg_builder: MessageBuilder, callback_data_codec: CallbackDataCodec):
+        self._callback_data_codec = callback_data_codec
         self._msg_builder = msg_builder
         self._injector = injector
         self._logger = structlog.get_logger(class_name=__class__.__name__)
 
     async def process_callback(self, navigation_context: NavigationContext, nav_tree: NavigationTree,
                                update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not navigation_context:
+            await update.callback_query.answer("Данные устарели. Запустите меню ещё раз.")
+            return
         if not update.callback_query:
             raise NotImplementedError("Navigation.process_callback only works with callback updates")
         target_entry = await self._walk_down_the_tree(navigation_context, nav_tree, update, context)
@@ -37,7 +42,12 @@ class Navigation:
             await update.callback_query.answer("Что-то пошло не так")
             return
         msg, buttons = await self._draw_view_entry(new_entry, update, context, navigation_context)
-        await update.callback_query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(buttons))
+        try:
+            await update.callback_query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(buttons))
+        except telegram.error.BadRequest as bad_request:
+            # 'the same message and markup' telegram exception workaround
+            if "are exactly the same as a current content" not in bad_request.message:
+                raise
 
     async def _walk_down_the_tree(self, navigation_context: NavigationContext, nav_tree: NavigationTree,
                                   update: Update, context: ContextTypes.DEFAULT_TYPE) -> _TreeEntry | None:
@@ -51,6 +61,7 @@ class Navigation:
             if not await self._check_claims_for_entry(current_entry, update, context):
                 await update.callback_query.answer("Недостаточно прав")
                 return None
+        navigation_context.context_vars = current_entry.context_vars
         return current_entry
 
     async def show_root_screen(self, navigation_context: NavigationContext, nav_tree: NavigationTree,
@@ -61,7 +72,8 @@ class Navigation:
         message_text, keyboard = await self._draw_view_entry(root_entry, update, context, navigation_context)
         await update.effective_message.reply_text(message_text, reply_markup=InlineKeyboardMarkup(keyboard))
 
-    async def _get_root_screen(self, nav_tree: list[_TreeEntry], update: Update, context: ContextTypes.DEFAULT_TYPE) -> _TreeEntry | None:
+    async def _get_root_screen(self, nav_tree: list[_TreeEntry],
+                               update: Update, context: ContextTypes.DEFAULT_TYPE) -> _TreeEntry | None:
         for screen in nav_tree:
             if not await self._check_claims_for_entry(screen, update, context):
                 continue
@@ -93,8 +105,8 @@ class Navigation:
             got_keyboard.append([
                 InlineKeyboardButton(
                     text=button.title,
-                    callback_data=self.str_data(NavigationContext(
-                        tree_path=nav_context.tree_path + [key] if key[0] != '_' else [],
+                    callback_data=self._callback_data_codec.encode(NavigationContext(
+                        tree_path=nav_context.tree_path + ([key] if key[0] != '_' else []),
                         root_cmd=nav_context.root_cmd,
                         context_vars={},
                         kwargs=button.kwargs
@@ -109,7 +121,7 @@ class Navigation:
             return None
         entry_handler = self._injector.get(entry.element_type, _TelegramUpdate)
         context_vars_buffer = nav_context.context_vars
-        nav_context.context_vars = entry.kwargs
+        nav_context.context_vars = entry.context_vars
         entry_handler.push_context(nav_context, update, context)
         res = _ButtonStab(
             position=entry.position,
@@ -126,21 +138,3 @@ class Navigation:
             if not await self._injector.get(claim, _TelegramUpdate).handle(update, context):
                 return False
         return True
-
-    @staticmethod
-    def parse_data(data: str) -> NavigationContext:
-        got_data = json.loads(data)
-        return NavigationContext(
-            root_cmd=got_data["cmd"],
-            tree_path=got_data["path"],
-            context_vars={},
-            kwargs=got_data["kwargs"]
-        )
-
-    @staticmethod
-    def str_data(nav_context: NavigationContext) -> str:
-        return json.dumps({
-            "cmd": nav_context.root_cmd,
-            "path": nav_context.tree_path,
-            "kwargs": nav_context.kwargs
-        })

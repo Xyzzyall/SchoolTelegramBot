@@ -1,9 +1,9 @@
 from voice_bot.telegram_bot.claims.admin_user import AdminUser
 from voice_bot.telegram_bot.claims.authorized_user import AuthorizedUser
 from voice_bot.telegram_bot.navigation.actions.clear_cache import ClearCache
+from voice_bot.telegram_bot.navigation.actions.create_schedule_tables import CreateScheduleTables
 from voice_bot.telegram_bot.navigation.actions.set_reminder import SetReminder
 from voice_bot.telegram_bot.navigation.base_classes import _TreeEntry, NavigationTree
-from voice_bot.telegram_bot.navigation.views.admin_schedule import ScheduleAdmin
 from voice_bot.telegram_bot.navigation.views.greeting import Greeting
 from voice_bot.telegram_bot.navigation.views.next_lesson import NextLesson
 from voice_bot.telegram_bot.navigation.views.schedule import Schedule
@@ -28,13 +28,14 @@ START_TREE: NavigationTree = [_TreeEntry(
 SCHEDULE_TREE: NavigationTree = [
     _TreeEntry(
         element_type=Schedule,
+        inner_text_template_override="Расписание",
         claims=[AuthorizedUser],
         children={
             "look_schedule": _TreeEntry(
                 element_type=TextView,
                 position=(10, 0),
                 title_override="Узнать расписание",
-                inner_text_template_override="",  # todo
+                inner_text_template_override="Расписание.Узнать",
                 children={
                     "next_lesson": _TreeEntry(
                         element_type=NextLesson,
@@ -50,7 +51,7 @@ SCHEDULE_TREE: NavigationTree = [
                         element_type=TimeBoundedSchedule,
                         position=(30, 0),
                         title_override="Следующие 7 дней",
-                        kwargs={
+                        context_vars={
                             "time_bound": "7"
                         }
                     )
@@ -60,12 +61,12 @@ SCHEDULE_TREE: NavigationTree = [
                 element_type=TextView,
                 position=(20, 0),
                 title_override="Напоминания",
-                inner_text_template_override="",  # todo
+                inner_text_template_override="Расписание.Напоминая",
                 children={
                     "24hours": _TreeEntry(
                         element_type=SetReminder,
                         position=(10, 0),
-                        kwargs={
+                        context_vars={
                             "title": "За сутки",
                             "reminder": "за сутки"
                         }
@@ -73,7 +74,7 @@ SCHEDULE_TREE: NavigationTree = [
                     "1hour": _TreeEntry(
                         element_type=SetReminder,
                         position=(20, 0),
-                        kwargs={
+                        context_vars={
                             "title": "За час",
                             "reminder": "за час"
                         }
@@ -83,19 +84,21 @@ SCHEDULE_TREE: NavigationTree = [
         }
     ),
     _TreeEntry(
-        element_type=ScheduleAdmin,
+        element_type=Schedule,
+        inner_text_template_override="РасписаниеАдмин",
         claims=[AdminUser],
         children={
             "look_schedule": _TreeEntry(
                 element_type=TextView,
                 title_override="Узнать расписание",
-                inner_text_template_override="",  # todo
+                inner_text_template_override="Расписание.Узнать",
+                position=(10, 0),
                 children={
                     "next_lesson": _TreeEntry(
                         element_type=NextLesson,
                         position=(10, 0),
                         title_override="Следующее занятие",
-                        kwargs={
+                        context_vars={
                             "is_admin": "y"
                         }
                     ),
@@ -103,7 +106,7 @@ SCHEDULE_TREE: NavigationTree = [
                         element_type=TimeBoundedSchedule,
                         position=(20, 0),
                         title_override="На сегодня",
-                        kwargs={
+                        context_vars={
                             "time_bound": "today",
                             "is_admin": "y"
                         }
@@ -112,7 +115,7 @@ SCHEDULE_TREE: NavigationTree = [
                         element_type=TimeBoundedSchedule,
                         position=(30, 0),
                         title_override="На завтра",
-                        kwargs={
+                        context_vars={
                             "time_bound": "tomorrow",
                             "is_admin": "y"
                         }
@@ -122,12 +125,13 @@ SCHEDULE_TREE: NavigationTree = [
             "reminders": _TreeEntry(
                 element_type=TextView,
                 title_override="Напоминания",
-                inner_text_template_override="",  # todo
+                inner_text_template_override="Расписание.Напоминая",
+                position=(20, 0),
                 children={
                     "1hour": _TreeEntry(
                         element_type=SetReminder,
                         position=(10, 0),
-                        kwargs={
+                        context_vars={
                             "title": "За час",
                             "reminder": "за час",
                             "is_admin": "y"
@@ -136,7 +140,7 @@ SCHEDULE_TREE: NavigationTree = [
                     "30minutes": _TreeEntry(
                         element_type=SetReminder,
                         position=(20, 0),
-                        kwargs={
+                        context_vars={
                             "title": "За полчаса",
                             "reminder": "за 30 минут",
                             "is_admin": "y"
@@ -155,25 +159,47 @@ SETTINGS_TREE: NavigationTree = [_TreeEntry(
             element_type=TextView,
             position=(10, 0),
             title_override="Очистить кэш",
-            inner_text_template_override="",  # todo
+            inner_text_template_override="Настройки.Очистка_кэша",
             claims=[AdminUser],
             children={
-                "settings_cache": _TreeEntry(
+                "all_cache": _TreeEntry(
                     element_type=ClearCache,
                     position=(10, 0),
+                    title_override="Очистить весь кэш (может вызвать лёгкие тормоза!)",
+                    context_vars={
+                        "cache_type": "all"
+                    }
+                ),
+                "settings_cache": _TreeEntry(
+                    element_type=ClearCache,
+                    position=(20, 0),
                     title_override="Кэш настроек",
-                    kwargs={
+                    context_vars={
                         "cache_type": "settings"
                     }
                 ),
                 "users_cache": _TreeEntry(
                     element_type=ClearCache,
-                    position=(20, 0),
+                    position=(30, 0),
                     title_override="Кэш учеников",
-                    kwargs={
+                    context_vars={
                         "cache_type": "users"
                     }
                 ),
+            }
+        ),
+        "schedule": _TreeEntry(
+            element_type=TextView,
+            position=(20, 0),
+            title_override="Расписание",
+            inner_text_template_override="Настройки.Расписание",
+            claims=[AdminUser],
+            children={
+                "create_tables": _TreeEntry(
+                    element_type=CreateScheduleTables,
+                    position=(10, 0),
+                    title_override="Создать таблицы с расписанием",
+                )
             }
         )
     }

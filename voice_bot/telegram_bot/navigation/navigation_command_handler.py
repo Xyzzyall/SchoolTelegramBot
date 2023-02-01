@@ -25,9 +25,13 @@ class NavigationCommandHandler(BaseUpdateHandler):
         await self._navigation.show_root_screen(self._navigation_context, self._navigation_tree, update, context)
 
     async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        await self._navigation.process_callback(
-            Navigation.parse_data(update.callback_query.data),
-            self._navigation_tree,
-            update,
-            context
-        )
+        try:
+            await self._navigation.process_callback(
+                self._navigation_context,
+                self._navigation_tree,
+                update,
+                context
+            )
+        except Exception as e:
+            await update.callback_query.answer("Упс! Произошла какая-то ошибка!")
+            raise

@@ -24,11 +24,7 @@ class MessageBuilder:
         self.push("ученик_идентификатор", user.unique_id)
         self.push("ученик_логин", user.telegram_login)
 
-    async def push_schedule_record(self, schedule_record: ScheduleRecord):
-        user = await self._users.get_user(lambda x: x.unique_id == schedule_record.user_id)
-        if not user:
-            raise KeyError(f"User with unique_id={schedule_record.user_id} is not found")
-        self.push_user(user)
+    def push_schedule_record(self, schedule_record: ScheduleRecord):
         self.push("занятие_время", f"с {schedule_record.time_start} до {schedule_record.time_end}")
         self.push("занятие_время_начала", schedule_record.time_start)
         self.push("занятие_время_конца", schedule_record.time_end)

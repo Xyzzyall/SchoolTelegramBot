@@ -1,0 +1,2 @@
+class ScheduleWeekIsNotFoundException(Exception):
+    pass
