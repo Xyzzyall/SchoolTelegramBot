@@ -119,6 +119,15 @@ SCHEDULE_TREE: NavigationTree = [
                             "time_bound": "tomorrow",
                             "is_admin": "y"
                         }
+                    ),
+                    "week": _TreeEntry(
+                        element_type=TimeBoundedSchedule,
+                        position=(40, 0),
+                        title_override="Следующие 7 дней",
+                        context_vars={
+                            "time_bound": "7",
+                            "is_admin": "y"
+                        }
                     )
                 }
             ),
@@ -143,6 +152,15 @@ SCHEDULE_TREE: NavigationTree = [
                         context_vars={
                             "title": "За полчаса",
                             "reminder": "за 30 минут",
+                            "is_admin": "y"
+                        }
+                    ),
+                    "15minutes": _TreeEntry(
+                        element_type=SetReminder,
+                        position=(20, 1),
+                        context_vars={
+                            "title": "За 15 минут",
+                            "reminder": "за 15 минут",
                             "is_admin": "y"
                         }
                     )

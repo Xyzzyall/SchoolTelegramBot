@@ -7,7 +7,7 @@ from voice_bot.spreadsheets.models.schedule_record import ScheduleRecord
 
 
 @singleton
-class ScheduleTable(ABC):
+class ScheduleTableService(ABC):
     @abstractmethod
     async def get_schedule_for_timespan(
             self, day_start: date, day_end: date) -> dict[str, list[ScheduleRecord]]:

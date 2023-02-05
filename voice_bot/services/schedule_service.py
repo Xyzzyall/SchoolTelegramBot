@@ -1,18 +1,19 @@
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
+from itertools import chain
 
 from injector import inject
 
 from voice_bot.spreadsheets.models.schedule_record import ScheduleRecord
 from voice_bot.spreadsheets.models.user import User
-from voice_bot.spreadsheets.params_table import ParamsTable
-from voice_bot.spreadsheets.schedule_table import ScheduleTable
+from voice_bot.spreadsheets.params_table import ParamsTableService
+from voice_bot.spreadsheets.schedule_table import ScheduleTableService
 from voice_bot.telegram_di_scope import telegramupdate
 
 
 @telegramupdate
-class Schedule:
+class ScheduleService:
     @inject
-    def __init__(self, schedule_table: ScheduleTable, params: ParamsTable):
+    def __init__(self, schedule_table: ScheduleTableService, params: ParamsTableService):
         self._params = params
         self._schedule_table = schedule_table
 
@@ -49,7 +50,21 @@ class Schedule:
     async def _get_schedule_base(self, date_start: date, date_end: date,
                                  user: User | None = None) -> list[ScheduleRecord]:
         all_records = await self._schedule_table.get_schedule_for_timespan(date_start, date_end)
-        res = list[ScheduleRecord](all_records[user.unique_id] if user else list(*all_records.values()))
+
+        res = all_records[user.unique_id] if user else [*chain(*all_records.values())]
+
         res.sort(key=lambda x: x.absolute_start_date)
         return res
 
+    async def get_next_lesson(self) -> ScheduleRecord | None:
+        return await self._get_next_lesson_base()
+
+    async def get_next_lesson_for(self, user: User) -> ScheduleRecord | None:
+        return await self._get_next_lesson_base(user)
+
+    async def _get_next_lesson_base(self, user: User | None = None) -> ScheduleRecord | None:
+        weeks_forward = int(await self._params.get_param("расписание_недель_вперёд"))
+        date_start = date.today()
+        date_end = date_start + timedelta(days=7 * weeks_forward)
+        schedule = await self._get_schedule_base(date_start, date_end, user)
+        return next(filter(lambda x: x.absolute_start_date > datetime.now(), schedule), None)

@@ -12,3 +12,4 @@ class User:
 
     schedule_reminders: set[timedelta]
 
+    chat_id: str = ''

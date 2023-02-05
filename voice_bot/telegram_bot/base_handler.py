@@ -12,5 +12,5 @@ class BaseUpdateHandler(ABC):
 
 class BaseScheduleHandler(ABC):
     @abstractmethod
-    async def handle(self, context: CallbackContext):
+    async def handle(self, context: ContextTypes.DEFAULT_TYPE):
         pass

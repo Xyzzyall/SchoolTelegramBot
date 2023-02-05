@@ -1,6 +1,6 @@
 from injector import inject
 
-from voice_bot.services.schedule import Schedule
+from voice_bot.services.schedule_service import ScheduleService
 from voice_bot.telegram_bot.navigation.base_classes import BaseAction
 from voice_bot.telegram_di_scope import telegramupdate
 
@@ -8,7 +8,7 @@ from voice_bot.telegram_di_scope import telegramupdate
 @telegramupdate
 class CreateScheduleTables(BaseAction):
     @inject 
-    def __init__(self, schedule: Schedule):
+    def __init__(self, schedule: ScheduleService):
         self._schedule = schedule
     
     async def handle_action(self):

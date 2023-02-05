@@ -3,15 +3,15 @@ from injector import inject
 from voice_bot.constants import DAYS_OF_THE_WEEK
 from voice_bot.spreadsheets.models.schedule_record import ScheduleRecord
 from voice_bot.spreadsheets.models.user import User
-from voice_bot.spreadsheets.params_table import ParamsTable
-from voice_bot.spreadsheets.users_table import UsersTable
+from voice_bot.spreadsheets.params_table import ParamsTableService
+from voice_bot.spreadsheets.users_table import UsersTableService
 from voice_bot.telegram_di_scope import telegramupdate
 
 
 @telegramupdate
 class MessageBuilder:
     @inject
-    def __init__(self, params: ParamsTable, users: UsersTable):
+    def __init__(self, params: ParamsTableService, users: UsersTableService):
         self._users = users
         self._params = params
         self._context = dict[str, str]()

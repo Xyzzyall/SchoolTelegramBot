@@ -1,4 +1,5 @@
 import json
+import uuid
 from datetime import datetime
 
 from injector import singleton
@@ -11,11 +12,10 @@ class CallbackDataCodec:
     def __init__(self):
         self._cache = dict[str, str]()
         self._reverse_cache = dict[str, str]()
-        self._id = 0
 
-    def _generate_key(self):
-        self._id += 1
-        return f"{int(datetime.utcnow().timestamp())} {self._id}"
+    @staticmethod
+    def _generate_key():
+        return str(uuid.uuid4())
 
     def encode(self, nav_context: NavigationContext) -> str:
         str_nav_context = self._str_data(nav_context)

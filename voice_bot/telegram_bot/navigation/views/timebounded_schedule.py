@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from itertools import groupby
 from typing import Iterable
 
@@ -6,8 +6,8 @@ from injector import inject
 
 from voice_bot.constants import DAYS_OF_THE_WEEK
 from voice_bot.services.message_builder import MessageBuilder
-from voice_bot.services.schedule import Schedule
-from voice_bot.services.users import Users
+from voice_bot.services.schedule_service import ScheduleService
+from voice_bot.services.users_service import UsersService
 from voice_bot.spreadsheets.models.schedule_record import ScheduleRecord
 from voice_bot.telegram_bot.claims.authorized_user import AuthorizedUser
 from voice_bot.telegram_bot.navigation.views.text_view import TextView
@@ -17,7 +17,7 @@ from voice_bot.telegram_di_scope import telegramupdate
 @telegramupdate
 class TimeBoundedSchedule(TextView):
     @inject
-    def __init__(self, schedule: Schedule, auth_user: AuthorizedUser, msg_builder: MessageBuilder, users: Users):
+    def __init__(self, schedule: ScheduleService, auth_user: AuthorizedUser, msg_builder: MessageBuilder, users: UsersService):
         self._users = users
         self._msg_builder = msg_builder
         self._auth_user = auth_user
@@ -36,22 +36,28 @@ class TimeBoundedSchedule(TextView):
 
         reply = list[str]()
         reply.append(await self._msg_builder.format("Расписание.Заглавие_расписания_на_даты"))
-        reply.append('')
-        for day, lessons in groupby(records, lambda x: x.absolute_start_date):
-            day: date
+
+        for day, lessons in groupby(records, lambda x: x.absolute_start_date.date()):
+            day: datetime
             lessons: Iterable[ScheduleRecord]
+
             self._msg_builder.push("расписание_день_недели",
-                                   f"{DAYS_OF_THE_WEEK[day.weekday()].capitalize()} ({day.strftime('%d.%m.%Y')})")
+                                   f"{DAYS_OF_THE_WEEK[day.weekday() + 1].capitalize()} ({day.strftime('%d.%m.%Y')})")
+            reply.append('')
             reply.append(await self._msg_builder.format("Занятие.Строка_с_днём_недели"))
+
             for lesson in lessons:
                 if "is_admin" in self.nav_context.context_vars:
                     user = await self._users.get_user_by_id(lesson.user_id)
                     if not user:
                         raise RuntimeError(f"User with id={lesson.user_id} is not found")
+
                     self._msg_builder.push_user(user)
                     self._msg_builder.push_schedule_record(lesson)
+
                     reply.append(await self._msg_builder.format("Занятие.Учитель_строка_расписания"))
                     continue
+
                 self._msg_builder.push_schedule_record(lesson)
                 reply.append(await self._msg_builder.format("Занятие.Строка_расписания"))
 
@@ -64,11 +70,13 @@ class TimeBoundedSchedule(TextView):
 
     def _decode_timespan(self) -> (date, date):
         time_bound = self.nav_context.context_vars["time_bound"]
+
         match time_bound:
             case "today": return date.today(), date.today()
             case "tomorrow":
                 tomorrow = date.today() + timedelta(days=1)
                 return tomorrow, tomorrow
+
         days = int(time_bound)
         return date.today(), date.today() + timedelta(days=days)
 

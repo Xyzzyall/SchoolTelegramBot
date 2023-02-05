@@ -4,7 +4,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from voice_bot.services.message_builder import MessageBuilder
-from voice_bot.services.user_authorization import UserAuthorization
+from voice_bot.services.user_authorization_service import UserAuthorizationService
 from voice_bot.telegram_bot.base_handler import BaseUpdateHandler
 from voice_bot.telegram_bot.claims.admin_user import AdminUser
 from voice_bot.telegram_bot.claims.authorized_user import AuthorizedUser
@@ -18,7 +18,7 @@ class TextMessageHandler(BaseUpdateHandler):
                  auth_user_claim: AuthorizedUser,
                  admin_user_claim: AdminUser,
                  msg_builder: MessageBuilder,
-                 user_auth: UserAuthorization):
+                 user_auth: UserAuthorizationService):
         self._admin_user_claim = admin_user_claim
         self._user_auth = user_auth
         self._msg_builder = msg_builder
@@ -37,8 +37,10 @@ class TextMessageHandler(BaseUpdateHandler):
 
         user = await self._user_auth.register_user(
             update.effective_user.username,
+            str(update.effective_message.chat_id),
             update.effective_message.text
         )
+
         if user:
             await self._logger.ainfo("User successfully authorized", user_id=user.unique_id,
                                      new_tg_login=user.telegram_login)

@@ -1,14 +1,14 @@
 from injector import singleton, inject
 
 from voice_bot.spreadsheets.misc import simple_cache
-from voice_bot.spreadsheets.params_table import ParamsTable
-from voice_bot.spreadsheets.users_table import UsersTable
+from voice_bot.spreadsheets.params_table import ParamsTableService
+from voice_bot.spreadsheets.users_table import UsersTableService
 
 
 @singleton
 class CacheService:
     @inject
-    def __init__(self, users: UsersTable, params: ParamsTable):
+    def __init__(self, users: UsersTableService, params: ParamsTableService):
         self._params = params
         self._users = users
 
