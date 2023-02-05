@@ -1,4 +1,5 @@
 import functools
+import json
 from dataclasses import dataclass
 from datetime import timedelta, datetime
 from hashlib import md5
@@ -28,9 +29,11 @@ class SimpleCache:
                 key = f"{key_prefix}:{key_hash}"
                 if key in self._cache:
                     val = self._cache[key]
+
                     if val.creation_date + val.duration >= datetime.now():
                         return val.value
-                new_val = await func(*args, **kwargs)
+
+                new_val = await func(other_self, *args, **kwargs)
                 self._cache[key] = _CacheEntry(new_val, datetime.now(), lifespan)
                 return new_val
             return wrapper
