@@ -1,7 +1,8 @@
 from abc import abstractmethod, ABC
 
 
-class _CachedTable(ABC):
+class Cached(ABC):
+    @staticmethod
     @abstractmethod
-    def delete_cache(self):
+    def delete_cache():
         pass

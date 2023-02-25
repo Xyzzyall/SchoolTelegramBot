@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from voice_bot.telegram_bot.base_claim import BaseClaim
+from voice_bot.domain.claims.base import ClaimDefinition
 
 
 @dataclass
@@ -49,7 +49,7 @@ class BaseAction(BaseNavigation, ABC):
 class _TreeEntry:
     element_type: type[BaseNavigation]
     position: (int, int) = (0, 0)
-    claims: list[type[BaseClaim]] = field(default_factory=list)
+    claims: list[ClaimDefinition] = field(default_factory=list)
     children: dict[str, "_TreeEntry"] = field(default_factory=dict)
     title_override: str | None = None
     inner_text_template_override: str | None = None

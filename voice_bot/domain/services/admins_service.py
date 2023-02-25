@@ -4,6 +4,7 @@ import structlog
 from injector import inject
 
 from voice_bot.constants import REMINDERS_OPTIONS
+from voice_bot.db.update_session import UpdateSession
 from voice_bot.spreadsheets.params_table import ParamsTableService
 from voice_bot.telegram_bot.telegram_bot_proxy import TelegramBotProxy
 from voice_bot.telegram_di_scope import telegramupdate
@@ -12,12 +13,12 @@ from voice_bot.telegram_di_scope import telegramupdate
 @telegramupdate
 class AdminsService:
     @inject
-    def __init__(self, params: ParamsTableService, tg_bot_proxy: TelegramBotProxy):
+    def __init__(self, params: ParamsTableService, tg_bot_proxy: TelegramBotProxy, session: UpdateSession):
         self._tg_bot_proxy = tg_bot_proxy
         self._params = params
         self._logger = structlog.get_logger(class_name=__class__.__name__)
 
-    async def send_message_to_admin(self, text: str):
+    async def send_message_to_admins(self, text: str):
         await self._tg_bot_proxy.bot.send_message(
             await self._params.get_param("преподаватель_chat_id"),
             text

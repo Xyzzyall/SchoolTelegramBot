@@ -22,7 +22,11 @@ class NavigationCommandHandler(BaseUpdateHandler):
         self._navigation_context = navigation_context
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        await self._navigation.show_root_screen(self._navigation_context, self._navigation_tree, update, context)
+        showed = await self._navigation.show_root_screen(
+            self._navigation_context, self._navigation_tree, update, context
+        )
+        if not showed:
+            await update.effective_message.reply_text("Недостаточно прав для выполнения команды 😢")
 
     async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:

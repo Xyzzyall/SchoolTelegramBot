@@ -2,9 +2,9 @@ from datetime import timedelta
 
 from injector import inject
 
+from voice_bot.misc import simple_cache
+from voice_bot.misc.simple_cache import simplecache
 from voice_bot.spreadsheets.google_cloud.gspread import GspreadClient
-from voice_bot.spreadsheets.misc import simple_cache
-from voice_bot.spreadsheets.misc.simple_cache import simplecache
 from voice_bot.spreadsheets.params_table import ParamsTableService
 
 
@@ -17,7 +17,8 @@ class GoogleParamsTableService(ParamsTableService):
 
     _TEMPLATES_TABLE_CACHE_KEY = "google_params_templates"
 
-    def delete_cache(self):
+    @staticmethod
+    def delete_cache():
         simple_cache.delete_key(self._SETTINGS_TABLE_CACHE_KEY)
         simple_cache.delete_key(self._TEMPLATES_TABLE_CACHE_KEY)
 
@@ -25,7 +26,9 @@ class GoogleParamsTableService(ParamsTableService):
     async def _get_templates(self) -> dict[str, str]:
         templates = dict[str, str]()
 
-        cells = self._gspread.gs_settings_sheet.worksheet("Шаблоны сообщений").get_values()
+        worksheet = await self._gspread.get_settings_worksheet("Шаблоны сообщений")
+
+        cells = worksheet.get_values()
         for row in cells[1:]:
             if not row[0]:
                 continue
@@ -38,7 +41,9 @@ class GoogleParamsTableService(ParamsTableService):
     async def _get_params(self) -> dict[str, str]:
         params = dict[str, str]()
 
-        cells = self._gspread.gs_settings_sheet.worksheet("Настройки").get_values()
+        worksheet = await self._gspread.get_settings_worksheet("Настройки")
+
+        cells = worksheet.get_values()
 
         for row in cells[1:]:
             if not row[0]:
@@ -67,7 +72,7 @@ class GoogleParamsTableService(ParamsTableService):
         return params[key]
 
     async def rewrite_param(self, key: str, val: str):
-        worksheet = self._gspread.gs_settings_sheet.worksheet("Настройки")
+        worksheet = await self._gspread.get_settings_worksheet("Настройки")
 
         cells = worksheet.get_values()
         row_id = 0

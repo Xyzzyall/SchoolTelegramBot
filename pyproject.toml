@@ -12,6 +12,10 @@ injector = "^0.20.1"
 structlog = "^22.3.0"
 gspread = "^5.7.2"
 contextvars = "^2.4"
+sqlalchemy = "^2.0.1"
+aiosqlite = "^0.18.0"
+alembic = "^1.9.2"
+asyncpg = "^0.27.0"
 
 [build-system]
 requires = ["poetry-core"]

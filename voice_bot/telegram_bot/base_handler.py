@@ -1,7 +1,7 @@
 from abc import abstractmethod, ABC
 
 from telegram import Update
-from telegram.ext import ContextTypes, CallbackContext
+from telegram.ext import ContextTypes
 
 
 class BaseUpdateHandler(ABC):

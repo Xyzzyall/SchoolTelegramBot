@@ -6,7 +6,7 @@ from injector import singleton, Injector, inject
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
-from voice_bot.services.message_builder import MessageBuilder
+from voice_bot.domain.services.message_builder import MessageBuilder
 from voice_bot.telegram_bot.navigation.base_classes import NavigationContext, BaseView, _ButtonStab, NavigationTree
 from voice_bot.telegram_bot.navigation.misc.callback_data_codec import CallbackDataCodec
 from voice_bot.telegram_bot.navigation.nav_tree import _TreeEntry
@@ -24,23 +24,28 @@ class Navigation:
 
     async def process_callback(self, navigation_context: NavigationContext, nav_tree: NavigationTree,
                                update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not update.callback_query:
+            raise NotImplementedError("Navigation.process_callback only works with callback updates")
+
         if not navigation_context:
             await update.callback_query.answer("Данные устарели. Запустите меню ещё раз.")
             return
-        if not update.callback_query:
-            raise NotImplementedError("Navigation.process_callback only works with callback updates")
-        target_entry = await self._walk_down_the_tree(navigation_context, nav_tree, update, context)
+
+        target_entry = await self._walk_down_the_tree(navigation_context, nav_tree, update)
         if not target_entry:
             return
+
         entry_handler = self._injector.get(target_entry.element_type, _TelegramUpdate)
         entry_handler.push_context(navigation_context, update, context)
         navigation_context = await entry_handler.handle()
-        new_entry = await self._walk_down_the_tree(navigation_context, nav_tree, update, context)
+
+        new_entry = await self._walk_down_the_tree(navigation_context, nav_tree, update)
         if not issubclass(new_entry.element_type, BaseView):
             await self._logger.aerror("Entry handling resulted in navigating to no view",
                                       path=navigation_context.tree_path)
             await update.callback_query.answer("Что-то пошло не так")
             return
+
         msg, buttons = await self._draw_view_entry(new_entry, update, context, navigation_context)
         try:
             await update.callback_query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(buttons))
@@ -50,32 +55,40 @@ class Navigation:
                 raise
 
     async def _walk_down_the_tree(self, navigation_context: NavigationContext, nav_tree: NavigationTree,
-                                  update: Update, context: ContextTypes.DEFAULT_TYPE) -> _TreeEntry | None:
-        current_entry = await self._get_root_screen(nav_tree, update, context)
+                                  update: Update) -> _TreeEntry | None:
+        current_entry = await self._get_root_screen(nav_tree, update)
         for entry_key in navigation_context.tree_path:
             if entry_key not in current_entry.children:
                 await self._logger.awarning("Invalid navtree path", path=navigation_context.tree_path)
                 await update.callback_query.answer("Что-то пошло не так")
                 return None
             current_entry = current_entry.children[entry_key]
-            if not await self._check_claims_for_entry(current_entry, update, context):
+            if not await self._check_claims_for_entry(current_entry, update):
                 await update.callback_query.answer("Недостаточно прав")
                 return None
         navigation_context.context_vars = current_entry.context_vars
         return current_entry
 
     async def show_root_screen(self, navigation_context: NavigationContext, nav_tree: NavigationTree,
-                               update: Update, context: ContextTypes.DEFAULT_TYPE):
+                               update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
         if not update.effective_message:
             raise NotImplementedError("Navigation.show_root_screen works only in message updates")
-        root_entry = await self._get_root_screen(nav_tree, update, context)
+        root_entry = await self._get_root_screen(nav_tree, update)
+
+        if not root_entry:
+            return False
+
+        if root_entry.context_vars:
+            navigation_context.context_vars = root_entry.context_vars
+
         message_text, keyboard = await self._draw_view_entry(root_entry, update, context, navigation_context)
         await update.effective_message.reply_text(message_text, reply_markup=InlineKeyboardMarkup(keyboard))
+        return True
 
     async def _get_root_screen(self, nav_tree: list[_TreeEntry],
-                               update: Update, context: ContextTypes.DEFAULT_TYPE) -> _TreeEntry | None:
+                               update: Update) -> _TreeEntry | None:
         for screen in nav_tree:
-            if not await self._check_claims_for_entry(screen, update, context):
+            if not await self._check_claims_for_entry(screen, update):
                 continue
             return screen
         return None
@@ -117,7 +130,7 @@ class Navigation:
 
     async def _tree_entry_to_button_stab(self, entry: _TreeEntry, update: Update, context: ContextTypes.DEFAULT_TYPE,
                                          nav_context: NavigationContext = None) -> _ButtonStab | None:
-        if not await self._check_claims_for_entry(entry, update, context):
+        if not await self._check_claims_for_entry(entry, update):
             return None
         entry_handler = self._injector.get(entry.element_type, _TelegramUpdate)
         context_vars_buffer = nav_context.context_vars
@@ -131,10 +144,12 @@ class Navigation:
         return res
 
     async def _check_claims_for_entry(
-            self, entry: _TreeEntry, update: Update,
-            context: ContextTypes.DEFAULT_TYPE
+            self, entry: _TreeEntry, update: Update
     ) -> bool:
         for claim in entry.claims:
-            if not await self._injector.get(claim, _TelegramUpdate).handle(update, context):
+            if not await self._injector.get(claim.base_class, _TelegramUpdate).check(
+                    update.effective_user.username,
+                    claim
+            ):
                 return False
         return True

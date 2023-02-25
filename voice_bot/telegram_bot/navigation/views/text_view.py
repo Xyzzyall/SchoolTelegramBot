@@ -11,6 +11,9 @@ class TextView(BaseView):
         raise NotImplementedError("Text view has no dynamic message text")
 
     async def get_view_buttons(self) -> dict[str, _ButtonStab]:
+        if "is_root" in self.nav_context.context_vars:
+            return {}
+
         return {
             "_back": _ButtonStab(
                 (100, 0),

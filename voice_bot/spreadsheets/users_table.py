@@ -3,20 +3,21 @@ from typing import Callable
 
 from injector import singleton
 
-from voice_bot.spreadsheets.cached_table import _CachedTable
-from voice_bot.spreadsheets.models.user import User
+from voice_bot.misc.cached import Cached
+from voice_bot.spreadsheets.dumped_table import _DumpedTable
+from voice_bot.spreadsheets.models.spreadsheet_user import SpreadsheetUser
 
 
 @singleton
-class UsersTableService(_CachedTable, ABC):
+class UsersTableService(_DumpedTable[SpreadsheetUser], Cached, ABC):
     @abstractmethod
-    async def get_user(self, filter_lambda: Callable[[User], bool]) -> User:
+    async def get_user(self, filter_lambda: Callable[[SpreadsheetUser], bool]) -> SpreadsheetUser:
         pass
 
     @abstractmethod
-    async def get_users(self) -> list[User]:
+    async def get_users(self) -> list[SpreadsheetUser]:
         pass
 
     @abstractmethod
-    async def rewrite_user(self, user: User):
+    async def rewrite_user(self, user: SpreadsheetUser):
         pass

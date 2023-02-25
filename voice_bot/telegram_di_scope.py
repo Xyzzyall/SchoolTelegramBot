@@ -46,16 +46,21 @@ class TelegramUpdateScopeDecorator:
 
     @inject
     def __init__(self, injector: Injector):
+        self._injector = injector
         self.request_scope_instance = injector.get(_TelegramUpdate)
 
     def __call__(self, func: T) -> T:
+        from voice_bot.db.update_session import UpdateSession
+
         @functools.wraps(func)
         async def wrapper(*args1, **kwargs1):
             rid = uuid.uuid4()
             rid_ctx = _request_id_ctx.set(rid)
             self.request_scope_instance.add_key(rid)
+
             try:
-                await func(*args1, **kwargs1)
+                async with self._injector.get(UpdateSession, _TelegramUpdate)():
+                    await func(*args1, **kwargs1)
             finally:
                 self.request_scope_instance.clear_key(rid)
                 _request_id_ctx.reset(rid_ctx)

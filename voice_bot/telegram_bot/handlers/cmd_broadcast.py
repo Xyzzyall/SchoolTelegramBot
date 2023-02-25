@@ -2,8 +2,7 @@ from injector import inject
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from voice_bot.services.message_builder import MessageBuilder
-from voice_bot.services.users_service import UsersService
+from voice_bot.domain.services.users_service import UsersService
 from voice_bot.telegram_bot.base_handler import BaseUpdateHandler
 from voice_bot.telegram_di_scope import telegramupdate
 

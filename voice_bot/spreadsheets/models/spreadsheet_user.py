@@ -1,9 +1,9 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import timedelta
 
 
 @dataclass
-class User:
+class SpreadsheetUser:
     row_id: int
     unique_id: str
     telegram_login: str
@@ -13,3 +13,7 @@ class User:
     schedule_reminders: set[timedelta]
 
     chat_id: str = ''
+
+    roles: list[str] = field(default_factory=list)
+
+    to_delete: bool = False

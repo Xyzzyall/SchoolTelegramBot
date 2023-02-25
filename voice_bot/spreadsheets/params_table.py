@@ -2,11 +2,11 @@ from abc import ABC, abstractmethod
 
 from injector import singleton
 
-from voice_bot.spreadsheets.cached_table import _CachedTable
+from voice_bot.misc.cached import Cached
 
 
 @singleton
-class ParamsTableService(_CachedTable, ABC):
+class ParamsTableService(Cached, ABC):
     @abstractmethod
     async def map_template(self, key: str, **kwargs) -> str:
         pass

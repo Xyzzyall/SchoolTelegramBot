@@ -4,10 +4,10 @@ from typing import Iterable
 from injector import inject
 
 from voice_bot.constants import DAYS_OF_THE_WEEK
-from voice_bot.services.message_builder import MessageBuilder
-from voice_bot.services.schedule_service import ScheduleService
-from voice_bot.spreadsheets.models.schedule_record import ScheduleRecord
-from voice_bot.telegram_bot.claims.authorized_user import AuthorizedUser
+from voice_bot.db.models import ScheduleRecord
+from voice_bot.domain.context import Context
+from voice_bot.domain.services.message_builder import MessageBuilder
+from voice_bot.domain.services.schedule_service import ScheduleService
 from voice_bot.telegram_bot.navigation.views.text_view import TextView
 from voice_bot.telegram_di_scope import telegramupdate
 
@@ -15,8 +15,8 @@ from voice_bot.telegram_di_scope import telegramupdate
 @telegramupdate
 class StandardSchedule(TextView):
     @inject
-    def __init__(self, schedule: ScheduleService, msg_builder: MessageBuilder, auth_user: AuthorizedUser):
-        self._user = auth_user.get_authorized_user()
+    def __init__(self, schedule: ScheduleService, msg_builder: MessageBuilder, context: Context):
+        self._user = context.authorized_user
         self._msg_builder = msg_builder
         self._schedule = schedule
 

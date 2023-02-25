@@ -1,18 +1,19 @@
 from dataclasses import dataclass, field
 
-from voice_bot.telegram_bot.base_claim import BaseClaim
+from voice_bot.domain.claims.base import ClaimDefinition
+from voice_bot.domain.claims.role_claim import RoleClaim
+from voice_bot.domain.roles import UserRoles
 from voice_bot.telegram_bot.base_handler import BaseUpdateHandler
-from voice_bot.telegram_bot.claims.admin_user import AdminUser
 from voice_bot.telegram_bot.handlers.cmd_broadcast import CmdBroadcast
+from voice_bot.telegram_bot.handlers.navigation_command_handler import NavigationCommandHandler
 from voice_bot.telegram_bot.navigation.base_classes import NavigationTree
 from voice_bot.telegram_bot.navigation.nav_tree import START_TREE, SETTINGS_TREE, SCHEDULE_TREE
-from voice_bot.telegram_bot.handlers.navigation_command_handler import NavigationCommandHandler
 
 
 @dataclass
 class CommandDefinition:
     handler: type[BaseUpdateHandler]
-    claims: list[type[BaseClaim]] = field(default_factory=list)
+    claims: list[ClaimDefinition] = field(default_factory=list)
 
 
 @dataclass
@@ -33,6 +34,6 @@ COMMANDS: dict[str, CommandDefinition] = {
     ),
     "broadcast": CommandDefinition(
         handler=CmdBroadcast,
-        claims=[AdminUser]
+        claims=[ClaimDefinition(RoleClaim, {"roles": set(UserRoles.sysadmin)})]
     )
 }

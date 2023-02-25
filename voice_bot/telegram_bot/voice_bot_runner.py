@@ -10,10 +10,10 @@ from telegram.ext import Application, CommandHandler, ContextTypes, CallbackQuer
 from voice_bot.misc.stopwatch import Stopwatch
 from voice_bot.telegram_bot.commands import COMMANDS, CommandDefinition, CommandWithMenuDefinition
 from voice_bot.telegram_bot.cron_jobs import CronJob, CRON_JOBS
+from voice_bot.telegram_bot.handlers.navigation_command_handler import NavigationCommandHandler
 from voice_bot.telegram_bot.handlers.text_message_handler import TextMessageHandler
 from voice_bot.telegram_bot.navigation.base_classes import NavigationContext
 from voice_bot.telegram_bot.navigation.misc.callback_data_codec import CallbackDataCodec
-from voice_bot.telegram_bot.handlers.navigation_command_handler import NavigationCommandHandler
 from voice_bot.telegram_bot.telegram_bot_proxy import TelegramBotProxy
 from voice_bot.telegram_di_scope import _TelegramUpdate, TelegramUpdateScopeDecorator
 from voice_bot.voice_bot_configurator import VoiceBotConfigurator
@@ -47,6 +47,7 @@ class VoiceBotRunner:
         tg_bot_proxy.push_bot(self._application.bot)
 
     def start_bot(self) -> None:
+        self._logger.info("Starting bot...")
         self._application.run_polling()
 
     def _wire_commands(self) -> None:
@@ -99,7 +100,9 @@ class _HandlerWrapper:
                 await self._logger.ainfo("Got update", telegram_update=update.to_json())
 
                 for claim in self._cmd_def.claims:
-                    if not await self._injector.get(claim, _TelegramUpdate).process(update, context):
+                    if not await self._injector.get(claim.base_class, _TelegramUpdate).check(
+                        update.effective_user.username, claim
+                    ):
                         return
 
                 handler = self._injector.get(self._cmd_def.handler, _TelegramUpdate)
