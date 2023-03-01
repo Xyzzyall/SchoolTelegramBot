@@ -41,7 +41,7 @@ class Navigation:
 
         new_entry = await self._walk_down_the_tree(navigation_context, nav_tree, update)
         if not issubclass(new_entry.element_type, BaseView):
-            await self._logger.aerror("Entry handling resulted in navigating to no view",
+            await self._logger.error("Entry handling resulted in navigating to no view",
                                       path=navigation_context.tree_path)
             await update.callback_query.answer("Что-то пошло не так")
             return
@@ -59,7 +59,7 @@ class Navigation:
         current_entry = await self._get_root_screen(nav_tree, update)
         for entry_key in navigation_context.tree_path:
             if entry_key not in current_entry.children:
-                await self._logger.awarning("Invalid navtree path", path=navigation_context.tree_path)
+                await self._logger.warning("Invalid navtree path", path=navigation_context.tree_path)
                 await update.callback_query.answer("Что-то пошло не так")
                 return None
             current_entry = current_entry.children[entry_key]

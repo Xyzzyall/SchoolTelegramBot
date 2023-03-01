@@ -1,0 +1,30 @@
+networks:
+  bridge: {}
+
+services:
+  app:
+    container_name: SchoolTelegramBot
+    build: .
+    env_file: .env
+    restart: always
+    environment:
+      VOICE_BOT_CONFIGS_JSON_PATH: ${CONFIG_JSON}
+    volumes:
+      - ./bot_data:/app/data
+    depends_on:
+      - db
+    networks:
+      - bridge
+  db:
+    container_name: db
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+      PGDATA: /db
+    volumes:
+      - ./pgdata:/db
+    networks:
+      - bridge

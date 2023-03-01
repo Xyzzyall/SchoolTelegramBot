@@ -4,6 +4,7 @@ from pathlib import Path
 
 from injector import singleton, inject, Injector
 
+from voice_bot.logger_configs import configure_logger
 from voice_bot.spreadsheets.admins_table import AdminsTableService
 from voice_bot.spreadsheets.params_table import ParamsTableService
 from voice_bot.spreadsheets.schedule_table import ScheduleTableService
@@ -31,6 +32,8 @@ class VoiceBotConfigurator:
             self.google_token_path = configs_path.parent / configs["google"]["token_path"]
             self.google_settings_table_link = configs["google"]["table_settings_link"]
             self.google_schedule_table_link = configs["google"]["table_schedule_link"]
+
+            configure_logger(configs["log_folder"])
 
     def _injector_bind_google_sheets(self):
         from voice_bot.spreadsheets.google_cloud.google_params_table import GoogleParamsTableService

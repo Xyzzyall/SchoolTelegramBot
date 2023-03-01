@@ -98,7 +98,7 @@ class GoogleUsersTableService(UsersTableService):
             key = subtext.lower()
 
             if key not in REMINDERS_OPTIONS:
-                await self._logger.awarning("Unknown reminder option key", missing_key=key)
+                await self._logger.warning("Unknown reminder option key", missing_key=key)
                 continue
 
             res.add(REMINDERS_OPTIONS[key])

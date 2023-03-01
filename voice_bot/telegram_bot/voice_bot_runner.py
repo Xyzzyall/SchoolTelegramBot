@@ -1,5 +1,6 @@
 import json
 import uuid
+from datetime import timedelta, datetime
 
 import structlog
 from injector import singleton, inject, Injector
@@ -47,7 +48,6 @@ class VoiceBotRunner:
         tg_bot_proxy.push_bot(self._application.bot)
 
     def start_bot(self) -> None:
-        self._logger.info("Starting bot...")
         self._application.run_polling()
 
     def _wire_commands(self) -> None:
@@ -63,6 +63,13 @@ class VoiceBotRunner:
         for name, job in CRON_JOBS.items():
             handler = _CronHandlerWrapper(self._injector, job, self._logger)
 
+            if job.interval == timedelta.max:
+                self._application.job_queue.run_once(
+                    callback=self._middleware(handler.handle),
+                    when=datetime.utcnow()
+                )
+                continue
+
             self._application.job_queue.run_repeating(
                 callback=self._middleware(handler.handle),
                 interval=job.interval,
@@ -75,11 +82,11 @@ class VoiceBotRunner:
         async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
             with bound_contextvars(local_request_id=str(uuid.uuid4())):
                 try:
-                    await self._logger.ainfo("Got text message", telegram_update=update.to_json())
+                    await self._logger.info("Got text message", telegram_update=update.to_json())
                     handler = self._injector.get(TextMessageHandler, _TelegramUpdate)
                     await handler.handle(update, context)
                 except Exception as e:
-                    await self._logger.aexception(e)
+                    await self._logger.exception(e)
                     raise
 
         self._application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self._middleware(handle)))
@@ -97,7 +104,7 @@ class _HandlerWrapper:
         with bound_contextvars(local_request_id=str(uuid.uuid4())):
             self._stopwatch.start()
             try:
-                await self._logger.ainfo("Got update", telegram_update=update.to_json())
+                await self._logger.debug("Got update", telegram_update=update.to_json())
 
                 for claim in self._cmd_def.claims:
                     if not await self._injector.get(claim.base_class, _TelegramUpdate).check(
@@ -117,11 +124,11 @@ class _HandlerWrapper:
                 await handler.handle(update, context)
 
             except Exception as e:
-                await self._logger.aexception(e)
+                await self._logger.exception(e)
                 raise
 
             finally:
-                await self._logger.ainfo("Update processed", req_time=self._stopwatch.stop())
+                await self._logger.info("Update processed", req_time=self._stopwatch.stop())
 
 
 class _CallbackQueryHandlerWrapper:
@@ -135,7 +142,7 @@ class _CallbackQueryHandlerWrapper:
         with bound_contextvars(local_request_id=str(uuid.uuid4())):
             self._stopwatch.start()
             try:
-                await self._logger.ainfo("Got callback update", telegram_update=update.to_json())
+                await self._logger.debug("Got callback update", telegram_update=update.to_json())
 
                 nav_context = self._callback_data_codec.decode(update.callback_query.data)
 
@@ -147,7 +154,7 @@ class _CallbackQueryHandlerWrapper:
 
                 if not isinstance(menu_cmd_def, CommandWithMenuDefinition):
                     await update.callback_query.answer("Что-то пошло не так")
-                    await self._logger.awarning("Callback query routed to command without navigation",
+                    await self._logger.warning("Callback query routed to command without navigation",
                                                 cmd_name=nav_context.root_cmd)
                     return
 
@@ -157,11 +164,11 @@ class _CallbackQueryHandlerWrapper:
                 await handler.handle_callback(update, context)
 
             except Exception as e:
-                await self._logger.aexception(e)
+                await self._logger.exception(e)
                 raise
 
             finally:
-                await self._logger.ainfo("Callback processed", req_time=self._stopwatch.stop())
+                await self._logger.info("Callback processed", req_time=self._stopwatch.stop())
 
 
 class _CronHandlerWrapper:
@@ -176,16 +183,16 @@ class _CronHandlerWrapper:
 
         with bound_contextvars(local_request_id=str(uuid.uuid4())):
             try:
-                await self._logger.ainfo("Cron started", cron=json.dumps(self._cron_def, default=str))
+                await self._logger.debug("Cron started", cron=json.dumps(self._cron_def, default=str))
 
                 handler = self._injector.get(self._cron_def.handler, _TelegramUpdate)
 
                 await handler.handle(context)
 
             except Exception as e:
-                await self._logger.aexception(e)
+                await self._logger.exception(e)
                 raise
 
             finally:
-                await self._logger.ainfo("Cron processed", req_time=self._stopwatch.stop())
+                await self._logger.info("Cron processed", req_time=self._stopwatch.stop())
 

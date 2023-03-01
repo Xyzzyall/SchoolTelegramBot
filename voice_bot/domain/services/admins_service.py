@@ -34,7 +34,7 @@ class AdminsService:
 
         for reminder_str in reminders_str.split(', '):
             if reminder_str not in REMINDERS_OPTIONS:
-                await self._logger.awarning("Reminder key missing", reminder_str=reminder_str)
+                await self._logger.warning("Reminder key missing", reminder_str=reminder_str)
                 continue
 
             res.add(REMINDERS_OPTIONS[reminder_str])

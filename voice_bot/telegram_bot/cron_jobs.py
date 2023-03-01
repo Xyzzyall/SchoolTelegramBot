@@ -9,7 +9,7 @@ from voice_bot.telegram_bot.handlers.cron_spreadsheet_sync import CronSpreadshee
 @dataclass
 class CronJob:
     handler: type[BaseScheduleHandler]
-    interval: timedelta
+    interval: timedelta = timedelta.max
     first: datetime = datetime.min
     last: datetime = datetime.max
 
@@ -23,6 +23,6 @@ CRON_JOBS: dict[str, CronJob] = {
     "spreadsheet_sync": CronJob(
         handler=CronSpreadsheetSync,
         interval=timedelta(hours=1),
-        first=datetime.utcnow() + timedelta(seconds=5)
+        first=datetime.utcnow() + timedelta(seconds=10)
     )
 }

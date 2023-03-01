@@ -50,7 +50,7 @@ class TextMessageHandler(BaseUpdateHandler):
         )
 
         if user:
-            await self._logger.ainfo("SpreadsheetUser successfully authorized", user_id=user.unique_name,
+            await self._logger.info("SpreadsheetUser successfully authorized", user_id=user.unique_name,
                                      new_tg_login=user.telegram_login)
             self._msg_builder.push('ученик_фио', user.fullname)
             template = "Авторизация.Успешно"

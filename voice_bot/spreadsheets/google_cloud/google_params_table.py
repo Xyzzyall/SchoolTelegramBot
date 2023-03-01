@@ -19,8 +19,8 @@ class GoogleParamsTableService(ParamsTableService):
 
     @staticmethod
     def delete_cache():
-        simple_cache.delete_key(self._SETTINGS_TABLE_CACHE_KEY)
-        simple_cache.delete_key(self._TEMPLATES_TABLE_CACHE_KEY)
+        simple_cache.delete_key(GoogleParamsTableService._SETTINGS_TABLE_CACHE_KEY)
+        simple_cache.delete_key(GoogleParamsTableService._TEMPLATES_TABLE_CACHE_KEY)
 
     @simplecache(_TEMPLATES_TABLE_CACHE_KEY, timedelta(days=365))
     async def _get_templates(self) -> dict[str, str]:

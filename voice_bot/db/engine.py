@@ -11,7 +11,7 @@ class Engine:
     @inject
     def __init__(self, config: VoiceBotConfigurator):
         self._conn_srt = config.db_connection_str
-        self.engine = create_async_engine(config.db_connection_str, echo=True)
+        self.engine = create_async_engine(config.db_connection_str)
         self.async_session = async_sessionmaker(self.engine, expire_on_commit=False, autoflush=False)
 
     def perform_migrations(self):
