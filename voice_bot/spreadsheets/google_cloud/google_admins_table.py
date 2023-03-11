@@ -101,6 +101,9 @@ class GoogleAdminsTableService(AdminsTableService):
             [{
                 'range': f'A3:Z{len(rows) + 2}',
                 'values': rows,
+            }, {
+                'range': f'A{len(rows) + 3}:Z1000',
+                'values': (1000 - len(rows) - 2) * [26 * ['']]
             }]
         )
 

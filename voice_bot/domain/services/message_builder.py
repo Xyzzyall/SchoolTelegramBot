@@ -35,7 +35,7 @@ class MessageBuilder:
         self.push("занятие_время_начала", record.time_start)
         self.push("занятие_время_конца", record.time_end)
         self.push("занятие_онлайн_или_очное", self._decode_schedule_type(record.type))
-        self.push("занятие_день_недели", DAYS_OF_THE_WEEK[record.day_of_the_week])
+        self.push("занятие_день_недели", DAYS_OF_THE_WEEK[record.day_of_the_week + 1])
 
     def push_schedule(self, record: ScheduleRecord):
         self.push("занятие_время", f"с {record.time_start} до {record.time_end}")

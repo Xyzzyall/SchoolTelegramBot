@@ -9,6 +9,7 @@ from voice_bot.domain.services.message_builder import MessageBuilder
 from voice_bot.domain.services.reminders_service import RemindersService
 from voice_bot.domain.services.schedule_service import ScheduleService
 from voice_bot.domain.services.users_service import UsersService
+from voice_bot.misc.datetime_service import DatetimeService
 from voice_bot.telegram_bot.base_handler import BaseScheduleHandler
 from voice_bot.telegram_di_scope import telegramupdate
 
@@ -16,7 +17,13 @@ from voice_bot.telegram_di_scope import telegramupdate
 @telegramupdate
 class CronLessonReminder(BaseScheduleHandler):
     @inject
-    def __init__(self, reminders: RemindersService, users: UsersService, schedule: ScheduleService, msg_builder: MessageBuilder):
+    def __init__(self,
+                 reminders: RemindersService,
+                 users: UsersService,
+                 schedule: ScheduleService,
+                 msg_builder: MessageBuilder,
+                 dt: DatetimeService):
+        self._dt = dt
         self._schedule = schedule
         self._users = users
         self._reminders = reminders
@@ -24,7 +31,7 @@ class CronLessonReminder(BaseScheduleHandler):
         self._logger = structlog.get_logger(class_name=__class__.__name__)
 
     async def handle(self, context: ContextTypes.DEFAULT_TYPE):
-        now = datetime.now()
+        now = self._dt.now()
 
         await self._remind_users(now)
         await self._remind_admins(now)

@@ -41,8 +41,7 @@ class RoleClaim(BaseClaim, Cached):
     @simplecache(_CACHE_KEY, lifespan=timedelta(minutes=15))
     async def _try_get_user(self, tg_login: str):
         query = select(User).options(subqueryload(User.roles)) \
-            .where(User.telegram_login == tg_login and
-                   is_active(User))
+            .where((User.telegram_login == tg_login) & is_active(User))
         return await self._session.scalar(query)
 
     @staticmethod

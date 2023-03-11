@@ -8,6 +8,7 @@ REMINDERS_OPTIONS = {
 }
 
 REMINDERS_TEXT = {
+    timedelta(hours=27): "завтра",
     timedelta(hours=24): "завтра",
     timedelta(hours=1): "через час",
     timedelta(minutes=15): "через 15 минут",

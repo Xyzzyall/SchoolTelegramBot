@@ -39,7 +39,6 @@ class TextMessageHandler(BaseUpdateHandler):
 
             if user_has_role(user, UserRoles.sysadmin):
                 await update.effective_message.reply_text(f"Что?\n{update.effective_message.text}?")
-                await self._spreadsheet_sync.perform_sync()
                 return
             return
 

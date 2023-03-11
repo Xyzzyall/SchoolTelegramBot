@@ -169,12 +169,14 @@ class GoogleUsersTableService(UsersTableService):
         records.sort(key=lambda x: x.unique_id)
 
         rows = [self._to_table_row(self._last_layout, user) for user in filter(lambda x: not x.to_delete, records)]
-
         worksheet = await self._gspread.get_settings_worksheet("Ученики")
 
         worksheet.batch_update(
             [{
                 'range': f'A3:Z{len(rows) + 2}',
                 'values': rows,
+            }, {
+                'range': f'A{len(rows) + 3}:Z1000',
+                'values': (1000 - len(rows) - 2) * [26 * ['']]
             }]
         )

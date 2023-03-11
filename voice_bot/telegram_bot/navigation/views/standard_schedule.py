@@ -33,7 +33,7 @@ class StandardSchedule(TextView):
         for day, lessons in groupby(schedule, lambda x: x.day_of_the_week):
             lessons: Iterable[ScheduleRecord]
 
-            self._msg_builder.push("расписание_день_недели", DAYS_OF_THE_WEEK[day].capitalize())
+            self._msg_builder.push("расписание_день_недели", DAYS_OF_THE_WEEK[day + 1].capitalize())
 
             reply.append('')
             reply.append(await self._msg_builder.format("Занятие.Строка_с_днём_недели"))

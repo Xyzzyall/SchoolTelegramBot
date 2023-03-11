@@ -7,6 +7,7 @@ from sqlalchemy.orm import joinedload
 from voice_bot.db.models import StandardScheduleRecord, User, ScheduleRecord
 from voice_bot.db.shortcuts import is_active
 from voice_bot.db.update_session import UpdateSession
+from voice_bot.misc.datetime_service import DatetimeService
 from voice_bot.spreadsheets.params_table import ParamsTableService
 from voice_bot.telegram_di_scope import telegramupdate
 
@@ -16,7 +17,9 @@ class ScheduleService:
     @inject
     def __init__(self,
                  session: UpdateSession,
-                 params: ParamsTableService):
+                 params: ParamsTableService,
+                 dt: DatetimeService):
+        self._dt = dt
         self._session = session()
         self._params = params
 
@@ -53,13 +56,13 @@ class ScheduleService:
 
     async def get_next_lesson(self) -> ScheduleRecord | None:
         query = select(ScheduleRecord).options(joinedload(ScheduleRecord.user)).where(
-            (ScheduleRecord.absolute_start_time > datetime.now()) & is_active(ScheduleRecord)
+            (ScheduleRecord.absolute_start_time > self._dt.now()) & is_active(ScheduleRecord)
         ).order_by(ScheduleRecord.absolute_start_time).limit(1)
         return await self._session.scalar(query)
 
     async def get_next_lesson_for(self, user: User) -> ScheduleRecord | None:
         query = select(ScheduleRecord).where(
-            (ScheduleRecord.user_id == user.id) & (ScheduleRecord.absolute_start_time > datetime.now())
+            (ScheduleRecord.user_id == user.id) & (ScheduleRecord.absolute_start_time > self._dt.now())
             & is_active(ScheduleRecord)
         ).order_by(ScheduleRecord.absolute_start_time).limit(1)
         return await self._session.scalar(query)

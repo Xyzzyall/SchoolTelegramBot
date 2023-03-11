@@ -10,6 +10,7 @@ from voice_bot.domain.context import Context
 from voice_bot.domain.services.message_builder import MessageBuilder
 from voice_bot.domain.services.schedule_service import ScheduleService
 from voice_bot.domain.services.users_service import UsersService
+from voice_bot.misc.datetime_service import DatetimeService
 from voice_bot.telegram_bot.navigation.views.text_view import TextView
 from voice_bot.telegram_di_scope import telegramupdate
 
@@ -21,7 +22,9 @@ class TimeBoundedSchedule(TextView):
                  schedule: ScheduleService,
                  msg_builder: MessageBuilder,
                  users: UsersService,
-                 context: Context):
+                 context: Context,
+                 dt: DatetimeService):
+        self._dt = dt
         self._context = context
         self._users = users
         self._msg_builder = msg_builder
@@ -71,7 +74,7 @@ class TimeBoundedSchedule(TextView):
     def _decode_timespan(self) -> (datetime, datetime):
         time_bound = self.nav_context.context_vars["time_bound"]
 
-        now = datetime.now()
+        now = self._dt.now()
         today_begin = datetime(year=now.year, month=now.month, day=now.day, hour=0)
         today_end = today_begin + timedelta(hours=23, minutes=59)
 

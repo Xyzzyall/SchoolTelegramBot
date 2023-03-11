@@ -4,7 +4,7 @@ from datetime import datetime
 
 @dataclass
 class SpreadsheetScheduleRecord:
-    table_name: str
+    table_name: str | None
 
     user_id: str
     is_online: bool
