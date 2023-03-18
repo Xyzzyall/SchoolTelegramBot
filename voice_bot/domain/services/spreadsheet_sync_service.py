@@ -208,7 +208,8 @@ class SpreadsheetSyncService:
                     end_time=record.time_end,
                     weekday=-1,
                     is_online=record.type == ScheduleRecordType.ONLINE,
-                    to_delete_in_bot=record.dump_state != DumpStates.TO_SYNC
+                    to_delete_in_bot=record.dump_state != DumpStates.TO_SYNC,
+                    to_delete_in_table=record.dump_state != DumpStates.TO_SYNC,
                 )
                 schedule.bot_record = record
             else:
@@ -220,7 +221,8 @@ class SpreadsheetSyncService:
                     end_time=record.time_end,
                     weekday=record.day_of_the_week,
                     is_online=record.type == ScheduleRecordType.ONLINE,
-                    to_delete_in_bot=record.dump_state != DumpStates.TO_SYNC
+                    to_delete_in_bot=record.dump_state != DumpStates.TO_SYNC,
+                    to_delete_in_table=record.dump_state != DumpStates.TO_SYNC,
                 )
                 schedule.bot_std_record = record
             self._schedule_merge[key] = schedule
@@ -260,7 +262,7 @@ class SpreadsheetSyncService:
                         time_start=merged_record.start_time,
                         time_end=merged_record.end_time,
                         type=ScheduleRecordType.ONLINE if merged_record.is_online else ScheduleRecordType.OFFLINE,
-                        dump_state=DumpStates.ACTIVE
+                        dump_state=DumpStates.ACTIVE,
                     )
                     merged_record.bot_std_record = new_record
                 else:

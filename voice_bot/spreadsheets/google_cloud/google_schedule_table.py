@@ -192,7 +192,7 @@ class GoogleScheduleTableService(ScheduleTableService):
         await self._rewrite_schedule_table(
             self.STANDARD_SCHEDULE_TABLE_NAME,
             self._put_records_into_table_layout(
-                filter(lambda x: not x.absolute_start_time, records),
+                filter(lambda x: not x.absolute_start_time and not x.to_delete, records),
                 first_column
             )
         )
@@ -213,7 +213,10 @@ class GoogleScheduleTableService(ScheduleTableService):
             await self._rewrite_schedule_table(
                 self.generate_table_name(monday),
                 self._put_records_into_table_layout(
-                    filter(lambda x: monday <= (x.absolute_start_time or datetime.max) <= saturday, records),
+                    filter(
+                        lambda x: (monday <= (x.absolute_start_time or datetime.max) <= saturday) and not x.to_delete,
+                        records
+                    ),
                     first_column
                 )
             )
