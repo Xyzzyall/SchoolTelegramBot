@@ -1,6 +1,6 @@
 from injector import inject
 from sqlalchemy import select
-from sqlalchemy.orm import joinedload, subqueryload
+from sqlalchemy.orm import subqueryload
 
 from voice_bot.db.enums import YesNo
 from voice_bot.db.models import UserRole, User

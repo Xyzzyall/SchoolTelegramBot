@@ -8,8 +8,8 @@ from telegram.ext import ContextTypes
 
 from voice_bot.domain.services.message_builder import MessageBuilder
 from voice_bot.telegram_bot.navigation.base_classes import NavigationContext, BaseView, _ButtonStab, NavigationTree
+from voice_bot.telegram_bot.navigation.base_classes import _TreeEntry
 from voice_bot.telegram_bot.navigation.misc.callback_data_codec import CallbackDataCodec
-from voice_bot.telegram_bot.navigation.nav_tree import _TreeEntry
 from voice_bot.telegram_di_scope import _TelegramUpdate
 
 
@@ -148,7 +148,7 @@ class Navigation:
     ) -> bool:
         for claim in entry.claims:
             if not await self._injector.get(claim.base_class, _TelegramUpdate).check(
-                    update.effective_user.username,
+                    str(update.effective_user.id),
                     claim
             ):
                 return False

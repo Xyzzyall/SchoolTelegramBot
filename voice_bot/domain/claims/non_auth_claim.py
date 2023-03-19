@@ -13,7 +13,7 @@ class NonAuthClaim(BaseClaim):
     def __init__(self, session: UpdateSession):
         self._session = session()
 
-    async def check(self, tg_login: str, options: ClaimDefinition) -> bool:
-        query = select(User.telegram_login).where(User.telegram_login == tg_login)
+    async def check(self, tg_chat_id: str, options: ClaimDefinition) -> bool:
+        query = select(User.telegram_login).where(User.telegram_chat_id == tg_chat_id)
         return not (await self._session.scalar(query))
 

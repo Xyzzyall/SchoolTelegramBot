@@ -29,25 +29,16 @@ class RemindersService:
     def _get_reminder_by_key(reminder_key: str) -> timedelta:
         return REMINDERS_OPTIONS[reminder_key]
 
-    async def _user_reminder(self, user: User, minutes: int) -> UserLessonReminder:
-        query = select(UserLessonReminder).where(
-            (UserLessonReminder.user_id == user.id)
-            & (UserLessonReminder.remind_minutes_before == minutes)).limit(1)
-        reminder = await self._session.scalar(query)
-
-        if not reminder:
-            new_reminder = UserLessonReminder(user=user, remind_minutes_before=minutes, is_active=YesNo.NO)
-            self._session.add(new_reminder)
-            return new_reminder
-
-        return reminder
-
     async def switch_reminder_for(self, user: User, reminder_type: str):
         delta = self._get_reminder_by_key(reminder_type)
         reminder = await self._user_reminder(user, int(delta.total_seconds() / 60))
-
         reminder.is_active = YesNo.YES if reminder.is_active == YesNo.NO else YesNo.NO
+        await self._session.commit()
 
+    async def set_reminder_state_for(self, user: User, reminder_type: str, state: bool):
+        delta = self._get_reminder_by_key(reminder_type)
+        reminder = await self._user_reminder(user, int(delta.total_seconds() / 60))
+        reminder.is_active = YesNo.YES if state else YesNo.NO
         await self._session.commit()
 
     async def get_reminder_state_for(self, user: User, reminder_type: str) -> bool:
@@ -60,17 +51,6 @@ class RemindersService:
             (UserLessonReminder.user_id == user.id) & (UserLessonReminder.is_active == YesNo.YES)
         )
         return [timedelta(minutes=minutes) for minutes in (await self._session.scalars(query)).all()]
-
-    _USER_FIRED_REMINDERS_SQL = text("""
-        SELECT DISTINCT u.telegram_chat_id "chat_id", u_r.remind_minutes_before "minutes", s.* FROM "USERS" u
-        JOIN "USERS_REMINDERS" u_r on u.id = u_r.user_id
-        JOIN "SCHEDULE" s on u.id = s.user_id
-        WHERE 1=1
-            AND u.dump_state IN ('ACTIVE', 'TO_SYNC')
-            AND s.dump_state IN ('ACTIVE', 'TO_SYNC')
-            AND s.type != 'RENT'
-            AND s.absolute_start_time - u_r.remind_minutes_before * '1 minute'::interval BETWEEN :start and :end
-    """)
 
     async def get_fired_reminders_at(self, time: datetime) -> list[FiredReminder]:
         start, end = time - REMINDER_THRESHOLD, time + REMINDER_THRESHOLD
@@ -96,4 +76,28 @@ class RemindersService:
             is_active(ScheduleRecord) & ScheduleRecord.absolute_start_time.between(start, end)
         )
         return (await self._session.scalars(query)).all()
+
+    async def _user_reminder(self, user: User, minutes: int) -> UserLessonReminder:
+        query = select(UserLessonReminder).where(
+            (UserLessonReminder.user_id == user.id)
+            & (UserLessonReminder.remind_minutes_before == minutes)).limit(1)
+        reminder = await self._session.scalar(query)
+
+        if not reminder:
+            new_reminder = UserLessonReminder(user=user, remind_minutes_before=minutes, is_active=YesNo.NO)
+            self._session.add(new_reminder)
+            return new_reminder
+
+        return reminder
+
+    _USER_FIRED_REMINDERS_SQL = text("""
+        SELECT DISTINCT u.telegram_chat_id "chat_id", u_r.remind_minutes_before "minutes", s.* FROM "USERS" u
+        JOIN "USERS_REMINDERS" u_r on u.id = u_r.user_id
+        JOIN "SCHEDULE" s on u.id = s.user_id
+        WHERE 1=1
+            AND u.dump_state IN ('ACTIVE', 'TO_SYNC')
+            AND s.dump_state IN ('ACTIVE', 'TO_SYNC')
+            AND s.type != 'RENT'
+            AND s.absolute_start_time - u_r.remind_minutes_before * '1 minute'::interval BETWEEN :start and :end
+    """)
 

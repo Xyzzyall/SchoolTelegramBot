@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 
 class BaseClaim(ABC):
     @abstractmethod
-    async def check(self, tg_login: str, options: "ClaimDefinition") -> bool:
+    async def check(self, tg_chat_id: str, options: "ClaimDefinition") -> bool:
         pass
 
 

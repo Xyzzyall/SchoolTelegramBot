@@ -27,9 +27,9 @@ class RoleClaim(BaseClaim, Cached):
         self._msg_bld = msg_bld
         self._session = session.session
 
-    async def check(self, tg_login: str, options: ClaimDefinition) -> bool:
+    async def check(self, tg_chat_id: str, options: ClaimDefinition) -> bool:
         roles: set[str] = options.kwargs["roles"]
-        maybe_user = await self._try_get_user(tg_login)
+        maybe_user = await self._try_get_user(tg_chat_id)
 
         if not maybe_user or not user_has_roles(maybe_user, roles):
             return False
@@ -38,10 +38,10 @@ class RoleClaim(BaseClaim, Cached):
         self._msg_bld.push_user(maybe_user)
         return True
 
-    @simplecache(_CACHE_KEY, lifespan=timedelta(minutes=15))
-    async def _try_get_user(self, tg_login: str):
+    @simplecache(_CACHE_KEY, lifespan=timedelta(minutes=1))
+    async def _try_get_user(self, tg_chat_id: str):
         query = select(User).options(subqueryload(User.roles)) \
-            .where((User.telegram_login == tg_login) & is_active(User))
+            .where((User.telegram_chat_id == tg_chat_id) & is_active(User))
         return await self._session.scalar(query)
 
     @staticmethod

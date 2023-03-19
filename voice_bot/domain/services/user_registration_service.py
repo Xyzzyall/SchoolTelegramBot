@@ -1,20 +1,27 @@
 from injector import inject
 from sqlalchemy import select
 
+from voice_bot.db.enums import YesNo
 from voice_bot.db.models import User
 from voice_bot.db.update_session import UpdateSession
 from voice_bot.domain.roles import UserRoles
 from voice_bot.domain.services.cache_service import CacheService
+from voice_bot.domain.services.reminders_service import RemindersService
 from voice_bot.domain.services.users_service import UsersService
 from voice_bot.spreadsheets.params_table import ParamsTableService
 from voice_bot.telegram_di_scope import telegramupdate
 
 
-# todo rename this class to UserRegistration and move authorization logic to claims
 @telegramupdate
 class UserRegistrationService:
     @inject
-    def __init__(self, params: ParamsTableService, users: UsersService, session: UpdateSession, cache: CacheService):
+    def __init__(self,
+                 params: ParamsTableService,
+                 users: UsersService,
+                 session: UpdateSession,
+                 cache: CacheService,
+                 reminders: RemindersService):
+        self._reminders = reminders
         self._session = session.session
         self._params = params
         self._users = users
@@ -36,8 +43,9 @@ class UserRegistrationService:
         if not users:
             return None
 
-        users[0].telegram_login = telegram_login
-        users[0].telegram_chat_id = chat_id
+        user: User = users[0]
+        user.telegram_login = telegram_login
+        user.telegram_chat_id = chat_id
 
         await self._users.send_text_message_to_roles(
             f"Ученик {users[0].fullname} зарегистрировался в боте!",
@@ -45,6 +53,10 @@ class UserRegistrationService:
         )
 
         await self._session.commit()
+
+        # по-умолчанию всем ставлю напоминалку за сутки
+        if user.is_admin == YesNo.NO:
+            await self._reminders.set_reminder_state_for(user, "за сутки", True)
 
         self._cache.clear_claims_cache()
 

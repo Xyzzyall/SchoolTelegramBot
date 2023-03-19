@@ -108,7 +108,7 @@ class _HandlerWrapper:
 
                 for claim in self._cmd_def.claims:
                     if not await self._injector.get(claim.base_class, _TelegramUpdate).check(
-                        update.effective_user.username, claim
+                        str(update.effective_user.id), claim
                     ):
                         return
 
