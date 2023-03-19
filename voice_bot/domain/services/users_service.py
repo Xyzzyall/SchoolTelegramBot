@@ -39,6 +39,10 @@ class UsersService:
         query = select(User).where(is_active(User) & (User.is_admin == YesNo.YES))
         return (await self._session.scalars(query)).all()
 
+    async def get_all_regular_users(self) -> list[User]:
+        query = select(User).where(is_active(User) & (User.is_admin == YesNo.NO))
+        return (await self._session.scalars(query)).all()
+
     async def send_text_message(self, user: User | str, text: str):
         chat_id = user.telegram_chat_id if isinstance(user, User) else user
         if not chat_id:
