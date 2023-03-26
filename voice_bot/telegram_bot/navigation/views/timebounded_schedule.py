@@ -18,12 +18,9 @@ from voice_bot.telegram_di_scope import telegramupdate
 @telegramupdate
 class TimeBoundedSchedule(TextView):
     @inject
-    def __init__(self,
-                 schedule: ScheduleService,
-                 msg_builder: MessageBuilder,
-                 users: UsersService,
-                 context: Context,
+    def __init__(self, schedule: ScheduleService, msg_builder: MessageBuilder, users: UsersService, context: Context,
                  dt: DatetimeService):
+        super().__init__()
         self._dt = dt
         self._context = context
         self._users = users
@@ -54,7 +51,7 @@ class TimeBoundedSchedule(TextView):
             reply.append(await self._msg_builder.format("Занятие.Строка_с_днём_недели"))
 
             for lesson in lessons:
-                if "is_admin" in self.nav_context.context_vars:
+                if "is_admin" in self.entry.context_vars:
                     self._msg_builder.push_user(lesson.user)
                     self._msg_builder.push_schedule_record(lesson)
 
@@ -67,12 +64,12 @@ class TimeBoundedSchedule(TextView):
         return '\n'.join(reply)
 
     async def _get_records(self, date_start: datetime, date_end: datetime) -> list[ScheduleRecord]:
-        user = self._context.authorized_user if "is_admin" not in self.nav_context.context_vars else None
+        user = self._context.authorized_user if "is_admin" not in self.entry.context_vars else None
         return await (self._schedule.get_schedule_for(date_start, date_end, user) if user
                       else self._schedule.get_schedule(date_start, date_end))
 
     def _decode_timespan(self) -> (datetime, datetime):
-        time_bound = self.nav_context.context_vars["time_bound"]
+        time_bound = self.entry.context_vars["time_bound"]
 
         now = self._dt.now()
         today_begin = datetime(year=now.year, month=now.month, day=now.day, hour=0)

@@ -4,6 +4,7 @@ from injector import inject
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
+from voice_bot.db.enums import DumpStates
 from voice_bot.db.models import StandardScheduleRecord, User, ScheduleRecord
 from voice_bot.db.shortcuts import is_active
 from voice_bot.db.update_session import UpdateSession
@@ -66,3 +67,18 @@ class ScheduleService:
             & is_active(ScheduleRecord)
         ).order_by(ScheduleRecord.absolute_start_time).limit(1)
         return await self._session.scalar(query)
+
+    async def get_lesson_by_id(self, lesson_id: int) -> ScheduleRecord | None:
+        query = select(ScheduleRecord).where((ScheduleRecord.id == lesson_id) & is_active(ScheduleRecord)) \
+            .options(joinedload(ScheduleRecord.user))
+        return await self._session.scalar(query)
+
+    async def cancel_lesson(self, lesson_id: int, user_id: int = -1) -> bool:
+        query = select(ScheduleRecord).where((ScheduleRecord.id == lesson_id) & is_active(ScheduleRecord)) \
+            .options(joinedload(ScheduleRecord.user))
+        lesson: ScheduleRecord | None = await self._session.scalar(query)
+        if not lesson or 0 < user_id != lesson.user.id:
+            return False
+        lesson.dump_state = DumpStates.BOT_DELETED
+        await self._session.commit()
+        return True

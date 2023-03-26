@@ -28,7 +28,7 @@ class TextMessageHandler(BaseUpdateHandler):
         self._logger = structlog.get_logger(class_name=__class__.__name__)
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        user = await self._users.get_user_with_roles_by_tg_login(update.effective_user.username)
+        user = await self._users.get_user_by_id(update.effective_user.id)
 
         if user:
             if user_has_role(user, UserRoles.student):

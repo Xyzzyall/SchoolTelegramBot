@@ -16,6 +16,7 @@ from voice_bot.telegram_di_scope import telegramupdate
 class StandardSchedule(TextView):
     @inject
     def __init__(self, schedule: ScheduleService, msg_builder: MessageBuilder, context: Context):
+        super().__init__()
         self._user = context.authorized_user
         self._msg_builder = msg_builder
         self._schedule = schedule

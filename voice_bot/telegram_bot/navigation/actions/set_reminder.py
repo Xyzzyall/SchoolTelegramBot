@@ -10,14 +10,15 @@ from voice_bot.telegram_di_scope import telegramupdate
 class SetReminder(BaseAction):
     @inject
     def __init__(self, reminders_service: RemindersService, context: Context):
+        super().__init__()
         self._user = context.authorized_user
         self._reminders_service = reminders_service
 
     async def handle_action(self):
-        reminder = self.nav_context.context_vars["reminder"]
+        reminder = self.entry.context_vars["reminder"]
         await self._reminders_service.switch_reminder_for(self._user, reminder)
 
     async def get_title(self) -> str:
-        reminder = self.nav_context.context_vars["reminder"]
+        reminder = self.entry.context_vars["reminder"]
         state = await self._reminders_service.get_reminder_state_for(self._user, reminder)
-        return f"{'✅' if state else '❌'} {self.nav_context.context_vars['title']}"
+        return f"{'✅' if state else '❌'} {self.entry.context_vars['title']}"

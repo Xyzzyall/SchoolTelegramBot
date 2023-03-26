@@ -9,11 +9,12 @@ from voice_bot.telegram_di_scope import telegramupdate
 class PerformSync(BaseAction):
     @inject
     def __init__(self, sync: SpreadsheetSyncService):
+        super().__init__()
         self._sync = sync
 
     async def handle_action(self):
         await self._sync.perform_sync()
-        await self.update.callback_query.answer("Синхронизация проведена успешно!")
+        await self.tg_context.popup("Синхронизация проведена успешно!")
 
     async def get_title(self) -> str:
         raise RuntimeError("PerformSync is not supposed to generate its own title")

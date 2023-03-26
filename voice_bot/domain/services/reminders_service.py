@@ -94,10 +94,10 @@ class RemindersService:
         SELECT DISTINCT u.telegram_chat_id "chat_id", u_r.remind_minutes_before "minutes", s.* FROM "USERS" u
         JOIN "USERS_REMINDERS" u_r on u.id = u_r.user_id
         JOIN "SCHEDULE" s on u.id = s.user_id
-        WHERE 1=1
-            AND u.dump_state IN ('ACTIVE', 'TO_SYNC')
-            AND s.dump_state IN ('ACTIVE', 'TO_SYNC')
-            AND s.type != 'RENT'
-            AND s.absolute_start_time - u_r.remind_minutes_before * '1 minute'::interval BETWEEN :start and :end
+        WHERE u.telegram_chat_id IS NOT NULL
+              AND u.dump_state IN ('ACTIVE', 'TO_SYNC')
+              AND s.dump_state IN ('ACTIVE', 'TO_SYNC')
+              AND s.type != 'RENT'
+              AND s.absolute_start_time - u_r.remind_minutes_before * '1 minute'::interval BETWEEN :start and :end
     """)
 

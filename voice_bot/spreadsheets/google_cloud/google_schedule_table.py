@@ -24,16 +24,19 @@ class GoogleScheduleTableService(ScheduleTableService):
     async def _get_schedule_from_table(
         self,
         table_name: str,
-        monday: date | None = None,
+        monday: datetime | None = None,
     ) -> dict[str, list[SpreadsheetScheduleRecord]]:
         return await self._get_schedule_from_table_nocache(table_name, monday)
 
     async def _get_schedule_from_table_nocache(
             self, table_name: str,
-            monday: date | None = None, get_dict: bool = True
+            monday: datetime | None = None, get_dict: bool = True
     ) -> dict[str, list[SpreadsheetScheduleRecord]] | list[SpreadsheetScheduleRecord]:
         worksheet = await self._gspread.get_schedule_worksheet(table_name)
         values = worksheet.get_values()
+
+        if monday:
+            monday = monday - timedelta(days=monday.weekday())
 
         res: dict[str, list[SpreadsheetScheduleRecord]] | list[SpreadsheetScheduleRecord]
         if get_dict:
@@ -80,7 +83,7 @@ class GoogleScheduleTableService(ScheduleTableService):
         return res
 
     @staticmethod
-    def _get_start_datetime(time_start: str, day: date) -> datetime:
+    def _get_start_datetime(time_start: str, day: datetime) -> datetime:
         start_hours, start_minutes = list(map(int, time_start.split(':')))
         return datetime(year=day.year, month=day.month, day=day.day, hour=start_hours, minute=start_minutes)
 
@@ -89,34 +92,7 @@ class GoogleScheduleTableService(ScheduleTableService):
         day_start: date,
         day_end: date,
     ) -> dict[str, list[SpreadsheetScheduleRecord]]:
-        res: dict[str, list[SpreadsheetScheduleRecord]] = defaultdict(list)
-        all_sheets = await self._get_all_schedule_sheet_names()
-
-        start_monday = day_start - timedelta(days=day_start.weekday())
-        end_monday = day_end - timedelta(days=day_end.weekday())
-        current_week_monday = start_monday
-
-        while current_week_monday <= end_monday:
-            table_name = self.generate_table_name(current_week_monday)
-
-            if table_name not in all_sheets:
-                raise ScheduleWeekIsNotFoundException(f"Table with name '{table_name}' is not found")
-
-            current_week_schedule = await self._get_schedule_from_table(table_name, monday=current_week_monday)
-
-            for user_id, records in current_week_schedule.items():
-                for record in records:
-                    if (
-                        record.absolute_start_time < datetime.combine(day_start, datetime.min.time())
-                        or record.absolute_start_time > datetime.combine(day_end, datetime.max.time())
-                    ):
-                        continue
-
-                    res[user_id].append(record)
-
-            current_week_monday += timedelta(days=7)
-
-        return res
+        pass
 
     async def create_schedule_sheet_for_week(self, monday: date):
         new_sheet_title = self.generate_table_name(monday)
@@ -173,16 +149,22 @@ class GoogleScheduleTableService(ScheduleTableService):
         if "from_monday" not in kwargs or "weeks" not in kwargs:
             raise KeyError("GoogleScheduleTableService.dump_records requires 'from_monday' and 'weeks' kwargs")
 
-        from_monday = kwargs['from_monday']
-        weeks = kwargs['weeks']
+        from_monday: datetime = kwargs['from_monday']
+        weeks: int = kwargs['weeks']
 
         res:  list[SpreadsheetScheduleRecord] = await self._get_schedule_from_table_nocache(
             self.STANDARD_SCHEDULE_TABLE_NAME, get_dict=False
         )
 
+        sheets: dict[datetime, str] = {}
         for sheet_name in await self._get_all_schedule_sheet_names(from_monday=from_monday, weeks=weeks):
-            res += await self._get_schedule_from_table_nocache(sheet_name, get_dict=False, monday=from_monday)
-            from_monday += timedelta(days=7)
+            day, month = sheet_name.split('-')[0].split('.')
+            sheets[datetime(year=2023, month=int(month), day=int(day))] = sheet_name
+
+        for i in range(weeks):
+            current_monday = from_monday + timedelta(days=7 * i)
+            sheet_name = sheets[datetime(year=2023, month=current_monday.month, day=current_monday.day)]
+            res += await self._get_schedule_from_table_nocache(sheet_name, get_dict=False, monday=current_monday)
 
         return res
 
@@ -218,7 +200,8 @@ class GoogleScheduleTableService(ScheduleTableService):
                         records
                     ),
                     first_column
-                )
+                ),
+                monday=monday
             )
             monday += timedelta(days=7)
             saturday += timedelta(days=7)
@@ -239,11 +222,19 @@ class GoogleScheduleTableService(ScheduleTableService):
 
         return record.user_id
 
-    async def _rewrite_schedule_table(self, sheet_name: str, content: list[list[str]]):
+    async def _rewrite_schedule_table(self, sheet_name: str, content: list[list[str]], monday: datetime | None = None):
         worksheet = await self._gspread.get_schedule_worksheet(sheet_name)
-        worksheet.batch_update(
-            [{
-                'range': 'B3:H12',
-                'values': content,
-            }]
-        )
+        update = [{
+            'range': 'B3:H12',
+            'values': content,
+        }]
+        if monday:
+            days_of_the_week = []
+            for i in range(7):
+                days_of_the_week.append(monday.strftime('%d.%m.%Y'))
+                monday += timedelta(days=1)
+            update.append({
+                'range': 'B2:H2',
+                'values': [days_of_the_week]
+            })
+        worksheet.batch_update(update)

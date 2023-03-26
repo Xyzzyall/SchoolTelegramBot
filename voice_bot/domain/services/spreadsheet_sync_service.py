@@ -6,6 +6,7 @@ import structlog
 from injector import inject
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload, subqueryload
+from typing_extensions import override
 
 from voice_bot.db.enums import DumpStates, ScheduleRecordType, YesNo
 from voice_bot.db.models import User, StandardScheduleRecord, ScheduleRecord, UserRole
@@ -51,7 +52,9 @@ class _ScheduleDto:
     bot_std_record: StandardScheduleRecord = None
     to_delete_in_bot: bool = False
     to_delete_in_table: bool = False
-    ignore: bool = False
+
+    def short_str(self):
+        return f"<{self.user_unique_name}, delete?{self.to_delete_in_table or self.to_delete_in_bot}>"
 
 
 @telegramupdate
@@ -89,6 +92,9 @@ class SpreadsheetSyncService:
         self._schedule_merge: dict[str, _ScheduleDto] = {}
 
     async def perform_sync(self):
+        self._users_merge = {}
+        self._schedule_merge = {}
+
         self._table_users = await self._users.dump_records()
         self._table_admins = await self._admins.dump_records()
         self._bot_users = (await self._session.scalars(_ALL_USERS_STMT)).all()
@@ -185,20 +191,29 @@ class SpreadsheetSyncService:
         bot_user.roles = new_bot_roles
 
     async def _sync_schedule(self):
-        for record in chain(self._table_schedule, self._bot_std_schedule, self._bot_schedule):
-            key = self._generate_str_schedule_key(record)
-            if isinstance(record, SpreadsheetScheduleRecord):
-                schedule = _ScheduleDto(
-                    user_unique_name=record.user_id,
-                    start_time=record.time_start,
-                    end_time=record.time_end,
-                    weekday=record.day_of_the_week - 1,
-                    absolute_start=record.absolute_start_time,
-                    is_online=record.is_online
-                )
-                self._schedule_merge[key] = schedule
-                continue
+        await self._logger.info(
+            "got table schedule",
+            table=", ".join([f"{rec.table_name}/{rec.day_of_the_week}/{rec.raw_time_start_time_end}/{rec.user_id}"
+                             for rec in self._table_schedule]))
 
+        for table_record in self._table_schedule:
+            key = self._generate_str_schedule_key_for_table(table_record)
+            schedule = _ScheduleDto(
+                user_unique_name=table_record.user_id,
+                start_time=table_record.time_start,
+                end_time=table_record.time_end,
+                weekday=table_record.day_of_the_week - 1,
+                absolute_start=table_record.absolute_start_time,
+                is_online=table_record.is_online
+            )
+            self._schedule_merge[key] = schedule
+
+        await self._logger.info(
+            "dumped table schedule",
+            vals=", ".join([f"'{k}':{v.short_str()}" for k, v in self._schedule_merge.items()]))
+
+        for record in chain(self._bot_std_schedule, self._bot_schedule):
+            key = self._generate_str_schedule_key(record)
             if isinstance(record, ScheduleRecord):
                 record: ScheduleRecord
                 schedule = self._schedule_merge[key] if key in self._schedule_merge else _ScheduleDto(
@@ -228,6 +243,8 @@ class SpreadsheetSyncService:
             self._schedule_merge[key] = schedule
 
             if schedule.user_unique_name not in self._users_merge:
+                await self._logger.warning(
+                    "sync: cannot find user in user's table", user=schedule.user_unique_name, key=key)
                 schedule.to_delete_in_bot = True
                 schedule.to_delete_in_table = True
                 continue
@@ -240,6 +257,9 @@ class SpreadsheetSyncService:
 
             schedule.to_delete_in_table = schedule.to_delete_in_table or record.dump_state == DumpStates.BOT_DELETED
             schedule.to_delete_in_bot = schedule.to_delete_in_bot or record.dump_state == DumpStates.BOT_DELETED
+
+        await self._logger.info(
+            "merging schedule", vals=", ".join([f"'{k}':{v.short_str()}" for k, v in self._schedule_merge.items()]))
 
         for merged_record in self._schedule_merge.values():
             if merged_record.to_delete_in_bot and (merged_record.bot_record or merged_record.bot_std_record):
@@ -278,28 +298,34 @@ class SpreadsheetSyncService:
                 self._session.add(new_record)
 
     def _merged_schedule_to_table(self) -> list[SpreadsheetScheduleRecord]:
-        return [SpreadsheetScheduleRecord(
-            table_name=None,
-            is_online=merged.is_online,
-            day_of_the_week=merged.weekday+1,
-            time_start=merged.start_time,
-            time_end=merged.end_time,
-            to_delete=merged.to_delete_in_table,
-            absolute_start_time=merged.absolute_start,
-            user_id=merged.user_unique_name,
-            raw_time_start_time_end=f'{merged.start_time}-{merged.end_time}'
-        ) for merged in self._schedule_merge.values()]
+        res: list[SpreadsheetScheduleRecord] = []
+        for merged in self._schedule_merge.values():
+            if merged.to_delete_in_table:
+                continue
+            res.append(SpreadsheetScheduleRecord(
+                table_name=None,
+                is_online=merged.is_online,
+                day_of_the_week=merged.weekday + 1,
+                time_start=merged.start_time,
+                time_end=merged.end_time,
+                to_delete=False,
+                absolute_start_time=merged.absolute_start,
+                user_id=merged.user_unique_name,
+                raw_time_start_time_end=f'{merged.start_time}-{merged.end_time}'
+            ))
+        return res
+
+    @staticmethod
+    def _generate_str_schedule_key_for_table(schedule: SpreadsheetScheduleRecord):
+        if schedule.absolute_start_time and schedule.table_name != "Стандарт":
+            return f"{schedule.absolute_start_time.isoformat()}"
+
+        return f"{schedule.day_of_the_week - 1};{schedule.time_start}-{schedule.time_end}"
 
     @staticmethod
     def _generate_str_schedule_key(
-            schedule: SpreadsheetScheduleRecord | ScheduleRecord | StandardScheduleRecord
+            schedule: ScheduleRecord | StandardScheduleRecord
     ) -> str:
-        if isinstance(schedule, SpreadsheetScheduleRecord):
-            if schedule.absolute_start_time:
-                return f"{schedule.absolute_start_time.isoformat()}"
-
-            return f"{schedule.day_of_the_week-1};{schedule.time_start}-{schedule.time_end}"
-
         if isinstance(schedule, ScheduleRecord):
             return f"{schedule.absolute_start_time.isoformat()}"
 

@@ -1,29 +1,53 @@
+import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
-from telegram import Update
-from telegram.ext import ContextTypes
+from telegram import InlineKeyboardButton
 
 from voice_bot.domain.claims.base import ClaimDefinition
 
 
+# @dataclass
+# class NavigationContext:
+#     root_cmd: str
+#     tree_path: list[str]
+#     context_vars: dict[str, str]
+#     kwargs: dict[str, str]
+
 @dataclass
 class NavigationContext:
-    root_cmd: str
+    root: "_TreeEntry"
     tree_path: list[str]
-    context_vars: dict[str, str]
-    kwargs: dict[str, str]
+    kwargs: dict[str, any]
+
+    def __hash__(self):
+        return super.__str__(self).__hash__()
+
+
+class TgContext(ABC):
+    @abstractmethod
+    def get_chat_id(self) -> str:
+        pass
+
+    @abstractmethod
+    async def popup(self, text: str):
+        pass
+
+    @abstractmethod
+    async def message(self, text: str, buttons: list[list[InlineKeyboardButton]]):
+        pass
 
 
 class BaseNavigation(ABC):
-    nav_context: NavigationContext
-    update: Update
-    context: ContextTypes.DEFAULT_TYPE
+    def __init__(self):
+        self.nav_context: NavigationContext = None
+        self.tg_context: TgContext = None
+        self.entry: _TreeEntry = None
 
-    def push_context(self, nav_context: NavigationContext, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    def push_context(self, nav_context: NavigationContext, tg_context: TgContext, entry: "_TreeEntry"):
         self.nav_context = nav_context
-        self.update = update
-        self.context = context
+        self.tg_context = tg_context
+        self.entry = entry
 
     @abstractmethod
     async def get_title(self) -> str:
@@ -54,6 +78,7 @@ class _TreeEntry:
     title_override: str | None = None
     inner_text_template_override: str | None = None
     context_vars: dict[str, str] = field(default_factory=dict)
+    uuid: str = field(default_factory=lambda: str(uuid.uuid4()))
 
 
 NavigationTree = list[_TreeEntry]
@@ -74,6 +99,16 @@ class BaseView(BaseNavigation, ABC):
     @abstractmethod
     async def get_view_buttons(self) -> dict[str, _ButtonStab]:
         pass
+
+    def get_view_kwarg(self, key: str, pop: bool = True) -> any:
+        if key[0] != '_':
+            raise RuntimeError("view kwarg can only start with '_', but got " + key)
+        if key not in self.nav_context.kwargs:
+            return None
+        return self.nav_context.kwargs.pop(key) if pop else self.nav_context.kwargs[key]
+
+    def set_view_kwarg(self, key: str, val: any):
+        self.nav_context.kwargs[key] = val
 
 
 class BaseRootView(BaseView, ABC):

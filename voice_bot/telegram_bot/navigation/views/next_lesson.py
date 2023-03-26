@@ -12,6 +12,7 @@ from voice_bot.telegram_di_scope import telegramupdate
 class NextLesson(TextView):
     @inject
     def __init__(self, schedule: ScheduleService, msg_builder: MessageBuilder, context: Context):
+        super().__init__()
         self._context = context
         self._msg_builder = msg_builder
         self._schedule = schedule
@@ -21,7 +22,7 @@ class NextLesson(TextView):
 
     async def get_message_text(self) -> str:
         user = self._context.authorized_user
-        is_admin = 'is_admin' in self.nav_context.context_vars
+        is_admin = 'is_admin' in self.entry.context_vars
         lesson = await (self._schedule.get_next_lesson() if is_admin else self._schedule.get_next_lesson_for(user))
         if not lesson:
             return await self._msg_builder.format("Занятие.Следующее_занятие_нет")
