@@ -75,8 +75,8 @@ class _TreeEntry:
     position: (int, int) = (0, 0)
     claims: list[ClaimDefinition] = field(default_factory=list)
     children: dict[str, "_TreeEntry"] = field(default_factory=dict)
-    title_override: str | None = None
-    inner_text_template_override: str | None = None
+    title: str | None = None
+    text_template: str | None = None
     context_vars: dict[str, str] = field(default_factory=dict)
     uuid: str = field(default_factory=lambda: str(uuid.uuid4()))
 
@@ -88,7 +88,7 @@ NavigationTree = list[_TreeEntry]
 class _ButtonStab:
     position: (int, int)
     title: str
-    kwargs: dict[str, str] = field(default_factory=dict)
+    kwargs: dict[str, any] = field(default_factory=dict)
 
 
 class BaseView(BaseNavigation, ABC):
@@ -101,11 +101,14 @@ class BaseView(BaseNavigation, ABC):
         pass
 
     def get_view_kwarg(self, key: str, pop: bool = True) -> any:
-        if key[0] != '_':
-            raise RuntimeError("view kwarg can only start with '_', but got " + key)
         if key not in self.nav_context.kwargs:
             return None
         return self.nav_context.kwargs.pop(key) if pop else self.nav_context.kwargs[key]
+
+    def erase_view_kwargs(self):
+        for key in [*self.nav_context.kwargs.keys()]:
+            if key[0] == "_":
+                self.nav_context.kwargs.pop(key)
 
     def set_view_kwarg(self, key: str, val: any):
         self.nav_context.kwargs[key] = val

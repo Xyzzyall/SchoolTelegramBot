@@ -13,6 +13,7 @@ from voice_bot.db.models import User, StandardScheduleRecord, ScheduleRecord, Us
 from voice_bot.db.update_session import UpdateSession
 from voice_bot.domain.services.alarm_service import AlarmService
 from voice_bot.domain.services.cache_service import CacheService
+from voice_bot.domain.services.users_service import UsersService
 from voice_bot.misc.datetime_service import DatetimeService
 from voice_bot.spreadsheets.admins_table import AdminsTableService
 from voice_bot.spreadsheets.models.spreadsheet_admin import SpreadsheetAdmin
@@ -69,7 +70,8 @@ class SpreadsheetSyncService:
                  tables: TablesService,
                  cache: CacheService,
                  alarm: AlarmService,
-                 dt: DatetimeService):
+                 dt: DatetimeService,
+                 bot_users_service: UsersService):
         self._dt = dt
         self._alarm = alarm
         self._cache = cache
@@ -80,6 +82,7 @@ class SpreadsheetSyncService:
         self._users = users_table
         self._session = session()
         self._logger = structlog.get_logger(class_name=__class__.__name__)
+        self._bot_users_service = bot_users_service
 
         self._table_users: list[SpreadsheetUser] = []
         self._table_admins: list[SpreadsheetAdmin] = []
@@ -226,6 +229,9 @@ class SpreadsheetSyncService:
                     to_delete_in_bot=record.dump_state != DumpStates.TO_SYNC,
                     to_delete_in_table=record.dump_state != DumpStates.TO_SYNC,
                 )
+                if record.dump_state == DumpStates.BOT_DELETED:
+                    await self._logger.info("detected canceled lesson", lesson={
+                        "id": record.id, "user": record.user.unique_name, "datetime": record.absolute_start_time})
                 schedule.bot_record = record
             else:
                 record: StandardScheduleRecord
@@ -263,16 +269,22 @@ class SpreadsheetSyncService:
 
         for merged_record in self._schedule_merge.values():
             if merged_record.to_delete_in_bot and (merged_record.bot_record or merged_record.bot_std_record):
-                await self._session.delete(merged_record.bot_record or merged_record.bot_std_record)
+                to_delete = merged_record.bot_record or merged_record.bot_std_record
+                await self._logger.info("deleting bot schedule record", record_id=to_delete.id)
+                await self._session.delete(to_delete)
                 continue
 
             if not merged_record.bot_record and not merged_record.bot_std_record:
                 if merged_record.user_unique_name not in self._users_merge:
                     await self._alarm.warning(
-                        "В расписании есть имена, которых нет в таблице учеников. Может быть опечатка?",
+                        "got an unexpected name in schedule tables, typo?",
                         src=SpreadsheetSyncService,
                         name=merged_record.user_unique_name,
                     )
+                    await self._bot_users_service.send_text_message_to_admins(
+                        "В таблице расписания где-то есть опечатка.\n"
+                        f"Не удалось найти ученика с именем '{merged_record.user_unique_name}'.\n"
+                        "ps это сообщение будет отправляться каждый час, пока ошибка не будет исправлена (даже ночью)!")
                     continue
 
                 if not merged_record.absolute_start:

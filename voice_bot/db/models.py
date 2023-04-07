@@ -103,6 +103,8 @@ class StandardScheduleRecord(BaseModel):
 
     type: Mapped[ScheduleRecordType] = mapped_column(Enum(ScheduleRecordType))
 
+    location: Mapped[Optional[str]] = mapped_column(String(128), init=False)  # todo: for future usage
+
     dump_state: Mapped[DumpStates] = mapped_column(Enum(DumpStates))
     updated_on: Mapped[datetime] = mapped_column(onupdate=datetime.now, default_factory=datetime.now)
     created_on: Mapped[datetime] = mapped_column(default_factory=datetime.now)
@@ -123,6 +125,8 @@ class ScheduleRecord(BaseModel):
     time_end: Mapped[str] = mapped_column(String(16))
 
     type: Mapped[ScheduleRecordType] = mapped_column(Enum(ScheduleRecordType))
+
+    location: Mapped[Optional[str]] = mapped_column(String(128), init=False)
 
     dump_state: Mapped[DumpStates] = mapped_column(Enum(DumpStates))
     updated_on: Mapped[datetime] = mapped_column(onupdate=datetime.now, default_factory=datetime.now)

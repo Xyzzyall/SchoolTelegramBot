@@ -53,7 +53,8 @@ class Navigation:
 
         msg, buttons = await self._draw_view_entry(new_entry, tg_context, navigation_context)
         try:
-            await update.callback_query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(buttons))
+            await update.callback_query.edit_message_text(
+                msg, reply_markup=InlineKeyboardMarkup(buttons), parse_mode="Markdown")
         except telegram.error.BadRequest as bad_request:
             # 'the same message and markup' telegram exception workaround
             if "are exactly the same as a current content" not in bad_request.message:
@@ -79,7 +80,7 @@ class Navigation:
         await self._send_screen_to_context(nav_context, tg_context)
         return True
 
-    async def send_template_to_chat(self, chat_id: str, nav_tree: NavigationTree, **kwargs):
+    async def send_template_to_chat(self, chat_id: str, nav_tree: NavigationTree, kwargs: dict[str, any] = None):
         tg_context = ProxyContext(proxy=self._proxy, chat_id=chat_id)
         root = await self._get_root_screen(nav_tree, tg_context)
         if not root:
@@ -92,7 +93,7 @@ class Navigation:
         nav_context = NavigationContext(
             root=root,
             tree_path=[],
-            kwargs=kwargs
+            kwargs=kwargs if kwargs else {}
         )
 
         await self._send_screen_to_context(nav_context, tg_context)
@@ -135,8 +136,8 @@ class Navigation:
             raise NotImplementedError("Only view classes")
         entry_handler = self._injector.get(entry.element_type, _TelegramUpdate)
         entry_handler.push_context(nav_context, context, entry)
-        message_text = await entry_handler.get_message_text() if not entry.inner_text_template_override \
-            else await self._msg_builder.format(entry.inner_text_template_override)
+        message_text = await entry_handler.get_message_text() if not entry.text_template \
+            else await self._msg_builder.format(entry.text_template)
 
         button_stabs = await entry_handler.get_view_buttons()
         for key, entry_child in entry.children.items():
@@ -155,11 +156,20 @@ class Navigation:
                     callback_data=self._callback_data_codec.encode(NavigationContext(
                         root=nav_context.root,
                         tree_path=nav_context.tree_path + ([key] if key[0] != '_' else []),
-                        kwargs={**button.kwargs, **nav_context.kwargs}
+                        kwargs=self._merge_kwargs(button.kwargs, nav_context.kwargs)
                     ))
                 ) for key, button in buttons_list
             ])
         return message_text, got_keyboard
+
+    @staticmethod
+    def _merge_kwargs(button: dict[str, any], old: dict[str, any]) -> dict[str, any]:
+        res = {}
+        for k, v in old.items():
+            res[k] = v
+        for k, v in button.items():
+            res[k] = v
+        return res
 
     async def _tree_entry_to_button_stab(self, entry: _TreeEntry, context: TgContext,
                                          nav_context: NavigationContext) -> _ButtonStab | None:
@@ -169,7 +179,7 @@ class Navigation:
         entry_handler.push_context(nav_context, context, entry)
         res = _ButtonStab(
             position=entry.position,
-            title=await entry_handler.get_title() if not entry.title_override else entry.title_override,
+            title=await entry_handler.get_title() if not entry.title else entry.title,
             kwargs=nav_context.kwargs
         )
         return res

@@ -1,6 +1,7 @@
 from voice_bot.domain.claims.shortcuts import CLAIM_STUDENT, CLAIM_SCHEDULE
 from voice_bot.telegram_bot.navigation.actions.set_reminder import SetReminder
 from voice_bot.telegram_bot.navigation.base_classes import _TreeEntry
+from voice_bot.telegram_bot.navigation.views.cancel_lesson import StudentCancelLessonView, AdminCancelLessonView
 from voice_bot.telegram_bot.navigation.views.next_lesson import NextLesson
 from voice_bot.telegram_bot.navigation.views.standard_schedule import StandardSchedule
 from voice_bot.telegram_bot.navigation.views.text_view import TextView
@@ -9,30 +10,30 @@ from voice_bot.telegram_bot.navigation.views.timebounded_schedule import TimeBou
 
 STUDENT_SCHEDULE = _TreeEntry(
     element_type=TextView,
-    inner_text_template_override="Расписание",
+    text_template="Расписание",
     context_vars={"is_root": "y"},
     claims=[CLAIM_STUDENT],
     children={
         "look_schedule": _TreeEntry(
             element_type=TextView,
             position=(10, 0),
-            title_override="Узнать расписание",
-            inner_text_template_override="Расписание.Узнать",
+            title="Узнать расписание",
+            text_template="Расписание.Узнать",
             children={
                 "standard_schedule": _TreeEntry(
                     element_type=StandardSchedule,
                     position=(10, 0),
-                    title_override="Обычное расписание"
+                    title="Обычное расписание"
                 ),
                 "next_lesson": _TreeEntry(
                     element_type=NextLesson,
                     position=(20, 0),
-                    title_override="Следующее занятие"
+                    title="Следующее занятие"
                 ),
                 "next_seven_days": _TreeEntry(
                     element_type=TimeBoundedSchedule,
                     position=(30, 0),
-                    title_override="Следующие 7 дней",
+                    title="Следующие 7 дней",
                     context_vars={
                         "time_bound": "7"
                     }
@@ -42,8 +43,8 @@ STUDENT_SCHEDULE = _TreeEntry(
         "reminders": _TreeEntry(
             element_type=TextView,
             position=(20, 0),
-            title_override="Напоминания",
-            inner_text_template_override="Расписание.Напоминая",
+            title="Напоминания",
+            text_template="Расписание.Напоминая",
             children={
                 "24hours": _TreeEntry(
                     element_type=SetReminder,
@@ -62,6 +63,11 @@ STUDENT_SCHEDULE = _TreeEntry(
                     }
                 )
             }
+        ),
+        "cancel_lesson": _TreeEntry(
+            element_type=StudentCancelLessonView,
+            title="Отмена занятий",
+            position=(30, 0)
         )
     }
 )
@@ -69,20 +75,20 @@ STUDENT_SCHEDULE = _TreeEntry(
 
 ADMIN_SCHEDULE = _TreeEntry(
     element_type=TextView,
-    inner_text_template_override="РасписаниеАдмин",
+    text_template="РасписаниеАдмин",
     context_vars={"is_root": "y"},
     claims=[CLAIM_SCHEDULE],
     children={
         "look_schedule": _TreeEntry(
             element_type=TextView,
-            title_override="Узнать расписание",
-            inner_text_template_override="Расписание.Узнать",
+            title="Узнать расписание",
+            text_template="Расписание.Узнать",
             position=(10, 0),
             children={
                 "next_lesson": _TreeEntry(
                     element_type=NextLesson,
                     position=(10, 0),
-                    title_override="Следующее занятие",
+                    title="Следующее занятие",
                     context_vars={
                         "is_admin": "y"
                     }
@@ -90,7 +96,7 @@ ADMIN_SCHEDULE = _TreeEntry(
                 "today": _TreeEntry(
                     element_type=TimeBoundedSchedule,
                     position=(20, 0),
-                    title_override="На сегодня",
+                    title="На сегодня",
                     context_vars={
                         "time_bound": "today",
                         "is_admin": "y"
@@ -99,7 +105,7 @@ ADMIN_SCHEDULE = _TreeEntry(
                 "tomorrow": _TreeEntry(
                     element_type=TimeBoundedSchedule,
                     position=(30, 0),
-                    title_override="На завтра",
+                    title="На завтра",
                     context_vars={
                         "time_bound": "tomorrow",
                         "is_admin": "y"
@@ -108,7 +114,7 @@ ADMIN_SCHEDULE = _TreeEntry(
                 "week": _TreeEntry(
                     element_type=TimeBoundedSchedule,
                     position=(40, 0),
-                    title_override="Следующие 7 дней",
+                    title="Следующие 7 дней",
                     context_vars={
                         "time_bound": "7",
                         "is_admin": "y"
@@ -118,8 +124,8 @@ ADMIN_SCHEDULE = _TreeEntry(
         ),
         "reminders": _TreeEntry(
             element_type=TextView,
-            title_override="Напоминания",
-            inner_text_template_override="Расписание.Напоминая",
+            title="Напоминания",
+            text_template="Расписание.Напоминая",
             position=(20, 0),
             children={
                 "1hour": _TreeEntry(
@@ -147,6 +153,11 @@ ADMIN_SCHEDULE = _TreeEntry(
                     }
                 )
             }
+        ),
+        "cancel_lesson": _TreeEntry(
+            element_type=AdminCancelLessonView,
+            title="Отмена занятий",
+            position=(30, 0),
         )
     }
 )

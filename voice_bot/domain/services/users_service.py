@@ -36,12 +36,12 @@ class UsersService:
             await self.send_text_message(user, message)
 
     async def get_user_by_id(self, user_id: int) -> User | None:
-        return await self._session.scalar(select(User).where(is_active(User) & (User.id == user_id))) \
-            .options(subqueryload(User.roles))
+        return await self._session.scalar(select(User).where(is_active(User) & (User.id == user_id))
+                                          .options(subqueryload(User.roles)))
 
-    async def get_user_with_roles_by_tg_login(self, login: str) -> User | None:
-        query = select(User).where(is_active(User) & (User.telegram_login == login)).options(subqueryload(User.roles))
-        return await self._session.scalar(query)
+    async def get_user_by_tg_id(self, chat_id: str) -> User | None:
+        return await self._session.scalar(select(User).where(is_active(User) & (User.telegram_chat_id == chat_id))
+                                          .options(subqueryload(User.roles)))
 
     async def get_all_admins(self) -> list[User]:
         query = select(User).where(is_active(User) & (User.is_admin == YesNo.YES))
@@ -51,11 +51,23 @@ class UsersService:
         query = select(User).where(is_active(User) & (User.is_admin == YesNo.NO))
         return (await self._session.scalars(query)).all()
 
+    async def send_template(self, user: User | str, template: str):
+        chat_id = user.telegram_chat_id if isinstance(user, User) else user
+        if not chat_id:
+            return
+        text = await self._msg_builder.format(template)
+        await self._tg_bot_proxy.bot.send_message(chat_id, text, parse_mode='Markdown')
+
     async def send_text_message(self, user: User | str, text: str):
         chat_id = user.telegram_chat_id if isinstance(user, User) else user
         if not chat_id:
             return
         await self._tg_bot_proxy.bot.send_message(chat_id, text, parse_mode='Markdown')
+
+    async def send_text_message_to_admins(self, text: str):
+        admins = await self.get_all_admins()
+        for admin in admins:
+            await self.send_text_message(admin, text)
 
     async def send_menu_to_admins(self, menu: NavigationTree, kwargs: dict[str, any]):
         admins = await self.get_all_admins()

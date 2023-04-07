@@ -11,6 +11,7 @@ from voice_bot.domain.services.schedule_service import ScheduleService
 from voice_bot.domain.services.users_service import UsersService
 from voice_bot.misc.datetime_service import DatetimeService
 from voice_bot.telegram_bot.base_handler import BaseScheduleHandler
+from voice_bot.telegram_bot.navigation.nav_tree import REMINDER_TREE
 from voice_bot.telegram_di_scope import telegramupdate
 
 
@@ -40,12 +41,14 @@ class CronLessonReminder(BaseScheduleHandler):
         fired = await self._reminders.get_fired_reminders_at(at)
         for reminder in fired:
             self._msg_builder.push_schedule(reminder.lesson)
-            self._msg_builder.push("занятие_относительное_время", REMINDERS_TEXT[timedelta(minutes=reminder.minutes)])
+            reminder_delta = timedelta(minutes=reminder.minutes)
+            self._msg_builder.push("занятие_относительное_время", REMINDERS_TEXT[reminder_delta])
 
-            await self._users.send_text_message(
-                reminder.chat_id,
-                await self._msg_builder.format("Занятие.Напоминание_о_занятии_ученик")
-            )
+            await self._users.send_menu_to_user(reminder.chat_id, REMINDER_TREE, {
+                "user_id": reminder.lesson.user_id,
+                "lesson_id": reminder.lesson.id,
+                "reminder_timedelta": reminder_delta
+            })
 
     async def _remind_admins(self, at: datetime):
         next_lesson = await self._schedule.get_next_lesson()

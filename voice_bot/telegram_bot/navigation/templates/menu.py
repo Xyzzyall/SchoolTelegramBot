@@ -9,14 +9,14 @@ from voice_bot.telegram_bot.navigation.views.text_view import TextView
 UNKNOWN_USER_MENU = _TreeEntry(
     element_type=TextView,
     context_vars={"is_root": "y"},
-    inner_text_template_override="Приветствие",
+    text_template="Приветствие",
     claims=[CLAIM_NOT_AUTH],
     children={
         "how_to_auth": _TreeEntry(
             element_type=TextView,
             position=(10, 0),
-            title_override="Как авторизоваться?",
-            inner_text_template_override="Приветствие.Как_авторизоваться"
+            title="Как авторизоваться?",
+            text_template="Приветствие.Как_авторизоваться"
         )
     }
 )
@@ -24,7 +24,7 @@ UNKNOWN_USER_MENU = _TreeEntry(
 STUDENT_MENU = _TreeEntry(
     element_type=TextView,
     context_vars={"is_root": "y"},
-    inner_text_template_override="Меню",
+    text_template="Меню",
     claims=[CLAIM_STUDENT],
     children={
         "schedule": _wrap(STUDENT_SCHEDULE, "Расписание", (0, 0)),
@@ -35,7 +35,7 @@ STUDENT_MENU = _TreeEntry(
 ADMIN_MENU = _TreeEntry(
     element_type=TextView,
     context_vars={"is_root": "y"},
-    inner_text_template_override="Меню",
+    text_template="Меню",
     claims=[CLAIM_SYSADMIN],
     children={
         "schedule": _wrap(ADMIN_SCHEDULE, "Расписание", (0, 0)),

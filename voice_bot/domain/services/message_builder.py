@@ -43,10 +43,7 @@ class MessageBuilder:
         self.push("занятие_время_конца", record.time_end)
         self.push("занятие_онлайн_или_очное", self._decode_schedule_type(record.type))
         self.push("занятие_день_недели", DAYS_OF_THE_WEEK[record.absolute_start_time.weekday() + 1])
-        self.push(
-            "занятие_дата",
-            record.absolute_start_time.strftime("%d.%m.%Y")
-        )
+        self.push("занятие_дата", record.absolute_start_time.strftime("%d.%m.%Y"))
 
     @staticmethod
     def _decode_schedule_type(t: ScheduleRecordType) -> str:
