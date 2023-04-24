@@ -10,10 +10,12 @@ from voice_bot.db.update_session import UpdateSession
 from voice_bot.domain.claims.base import BaseClaim, ClaimDefinition
 from voice_bot.domain.context import Context
 from voice_bot.domain.services.message_builder import MessageBuilder
+from voice_bot.domain.services.users_service import UsersService
 from voice_bot.domain.utils.user_utils import user_has_roles
 from voice_bot.misc import simple_cache
 from voice_bot.misc.cached import Cached
 from voice_bot.misc.simple_cache import simplecache
+from voice_bot.misc.user_mock import is_mocked, mock_chat_id_to_user
 from voice_bot.telegram_di_scope import telegramupdate
 
 _CACHE_KEY = "role_claim"
@@ -29,7 +31,8 @@ class RoleClaim(BaseClaim, Cached):
 
     async def check(self, tg_chat_id: str, options: ClaimDefinition) -> bool:
         roles: set[str] = options.kwargs["roles"]
-        maybe_user = await self._try_get_user(tg_chat_id)
+        maybe_user = mock_chat_id_to_user(tg_chat_id) if is_mocked(tg_chat_id) \
+            else await self._try_get_user(tg_chat_id)
 
         if not maybe_user or not user_has_roles(maybe_user, roles):
             return False

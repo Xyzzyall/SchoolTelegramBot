@@ -13,6 +13,7 @@ from voice_bot.telegram_bot.commands import COMMANDS, CommandDefinition, Command
 from voice_bot.telegram_bot.cron_jobs import CronJob, CRON_JOBS
 from voice_bot.telegram_bot.handlers.navigation_command_handler import NavigationCommandHandler
 from voice_bot.telegram_bot.handlers.text_message_handler import TextMessageHandler
+from voice_bot.telegram_bot.services.errors_messenger import ErrorsMessenger
 from voice_bot.telegram_bot.telegram_bot_proxy import TelegramBotProxy
 from voice_bot.telegram_di_scope import _TelegramUpdate, TelegramUpdateScopeDecorator
 from voice_bot.voice_bot_configurator import VoiceBotConfigurator
@@ -96,6 +97,8 @@ class _HandlerWrapper:
         self._cmd_def = cmd_def
         self._stopwatch = Stopwatch()
 
+        self._alarm = self._injector.get(ErrorsMessenger)
+
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         with bound_contextvars(local_request_id=str(uuid.uuid4())):
             self._stopwatch.start()
@@ -117,6 +120,7 @@ class _HandlerWrapper:
 
             except Exception as e:
                 await self._logger.exception(e)
+                await self._alarm.alarm(e)
 
             finally:
                 await self._logger.info("Update processed", req_time=self._stopwatch.stop())
@@ -128,6 +132,8 @@ class _CallbackQueryHandlerWrapper:
         self._injector = injector
         self._stopwatch = Stopwatch()
 
+        self._alarm = self._injector.get(ErrorsMessenger)
+
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         with bound_contextvars(local_request_id=str(uuid.uuid4())):
             self._stopwatch.start()
@@ -138,6 +144,7 @@ class _CallbackQueryHandlerWrapper:
 
             except Exception as e:
                 await self._logger.exception(e)
+                await self._alarm.alarm(e)
 
             finally:
                 await self._logger.info("Callback processed", req_time=self._stopwatch.stop())
@@ -150,6 +157,8 @@ class _CronHandlerWrapper:
         self._injector = injector
         self._stopwatch = Stopwatch()
 
+        self._alarm = self._injector.get(ErrorsMessenger)
+
     async def handle(self, context: ContextTypes.DEFAULT_TYPE):
         self._stopwatch.start()
 
@@ -161,6 +170,7 @@ class _CronHandlerWrapper:
 
             except Exception as e:
                 await self._logger.exception(e)
+                await self._alarm.alarm(e)
 
             finally:
                 await self._logger.info("Cron processed", req_time=self._stopwatch.stop())

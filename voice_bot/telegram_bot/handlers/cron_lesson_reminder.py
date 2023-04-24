@@ -40,13 +40,10 @@ class CronLessonReminder(BaseScheduleHandler):
     async def _remind_users(self, at: datetime):
         fired = await self._reminders.get_fired_reminders_at(at)
         for reminder in fired:
-            self._msg_builder.push_schedule(reminder.lesson)
             reminder_delta = timedelta(minutes=reminder.minutes)
-            self._msg_builder.push("занятие_относительное_время", REMINDERS_TEXT[reminder_delta])
-
             await self._users.send_menu_to_user(reminder.chat_id, REMINDER_TREE, {
-                "user_id": reminder.lesson.user_id,
-                "lesson_id": reminder.lesson.id,
+                "user_id": reminder.user_id,
+                "lesson_id": reminder.lesson_id,
                 "reminder_timedelta": reminder_delta
             })
 

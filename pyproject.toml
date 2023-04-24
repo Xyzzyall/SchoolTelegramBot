@@ -17,6 +17,7 @@ aiosqlite = "^0.18.0"
 alembic = "^1.9.4"
 asyncpg = "^0.27.0"
 colorama = "^0.4.6"
+gcsa = "^2.1.0"
 
 [build-system]
 requires = ["poetry-core"]

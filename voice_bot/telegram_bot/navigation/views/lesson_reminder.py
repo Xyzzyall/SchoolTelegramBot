@@ -10,7 +10,6 @@ from voice_bot.domain.services.users_service import UsersService
 from voice_bot.misc.datetime_service import DatetimeService
 from voice_bot.telegram_bot.navigation.base_classes import BaseView, NavigationContext, _ButtonStab, _TreeEntry
 from voice_bot.telegram_bot.navigation.views.admin_cancellation_confirm import CancellationConfirmView
-from voice_bot.telegram_bot.navigation.views.text_view import TextView
 from voice_bot.telegram_di_scope import telegramupdate
 
 
@@ -33,7 +32,6 @@ class StudentLessonReminderView(BaseView):
         self._users = users
         self._msg = msg
         self._schedule = schedule
-        self._lesson_cache: ScheduleRecord | None | int = -1
 
     async def get_title(self) -> str:
         raise RuntimeError("no title")
@@ -92,15 +90,8 @@ class StudentLessonReminderView(BaseView):
         return self.nav_context
 
     async def _get_lesson_from_kwargs(self) -> ScheduleRecord | None:
-        async def nocache() -> ScheduleRecord | None:
-            user_id: int = self.get_view_kwarg("user_id", False)
-            lesson_id: int = self.get_view_kwarg("lesson_id", False)
-            lesson = await self._schedule.get_lesson_by_id(lesson_id)
-            return None if not lesson or lesson.user.id != user_id else lesson
-
-        if self._lesson_cache == -1:
-            self._lesson_cache = await nocache()
-        return self._lesson_cache
+        lesson_id: int = self.get_view_kwarg("lesson_id", False)
+        return await self._schedule.get_lesson_by_id(lesson_id)
 
     async def _lesson_not_found_text(self) -> str:
         return await self._msg.format("Занятие.Уже_отменено")

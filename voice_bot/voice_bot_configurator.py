@@ -35,6 +35,9 @@ class VoiceBotConfigurator:
 
             configure_logger(configs["log_folder"])
 
+            self.calendar_email = configs["calendar_email"]
+            self.oauth_credentials = configs_path.parent / configs["oauth_credentials"]
+
     def _injector_bind_google_sheets(self):
         from voice_bot.spreadsheets.google_cloud.google_params_table import GoogleParamsTableService
         self._injector.binder.bind(ParamsTableService, GoogleParamsTableService)

@@ -128,6 +128,8 @@ class ScheduleRecord(BaseModel):
 
     location: Mapped[Optional[str]] = mapped_column(String(128), init=False)
 
+    gc_event_id: Mapped[Optional[str]] = mapped_column(String(40), init=False)
+
     dump_state: Mapped[DumpStates] = mapped_column(Enum(DumpStates))
     updated_on: Mapped[datetime] = mapped_column(onupdate=datetime.now, default_factory=datetime.now)
     created_on: Mapped[datetime] = mapped_column(default_factory=datetime.now)

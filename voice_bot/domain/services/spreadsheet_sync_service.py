@@ -6,12 +6,12 @@ import structlog
 from injector import inject
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload, subqueryload
-from typing_extensions import override
 
 from voice_bot.db.enums import DumpStates, ScheduleRecordType, YesNo
 from voice_bot.db.models import User, StandardScheduleRecord, ScheduleRecord, UserRole
 from voice_bot.db.update_session import UpdateSession
 from voice_bot.domain.services.alarm_service import AlarmService
+from voice_bot.domain.services.book_lesson_service import FreeLesson, BookLessonsService
 from voice_bot.domain.services.cache_service import CacheService
 from voice_bot.domain.services.users_service import UsersService
 from voice_bot.misc.datetime_service import DatetimeService
@@ -93,6 +93,8 @@ class SpreadsheetSyncService:
 
         self._users_merge: dict[str, _UserDto] = {}
         self._schedule_merge: dict[str, _ScheduleDto] = {}
+
+        self._free_lessons: list[FreeLesson] = []
 
     async def perform_sync(self):
         self._users_merge = {}
@@ -217,14 +219,16 @@ class SpreadsheetSyncService:
 
         for record in chain(self._bot_std_schedule, self._bot_schedule):
             key = self._generate_str_schedule_key(record)
+            existing = self._schedule_merge[key] \
+                if key in self._schedule_merge and self._schedule_merge[key].user_unique_name != '-' else None
             if isinstance(record, ScheduleRecord):
                 record: ScheduleRecord
-                schedule = self._schedule_merge[key] if key in self._schedule_merge else _ScheduleDto(
+                schedule = existing or _ScheduleDto(
                     user_unique_name=record.user.unique_name,
                     absolute_start=record.absolute_start_time,
                     start_time=record.time_start,
                     end_time=record.time_end,
-                    weekday=-1,
+                    weekday=record.absolute_start_time.weekday(),
                     is_online=record.type == ScheduleRecordType.ONLINE,
                     to_delete_in_bot=record.dump_state != DumpStates.TO_SYNC,
                     to_delete_in_table=record.dump_state != DumpStates.TO_SYNC,
@@ -235,7 +239,7 @@ class SpreadsheetSyncService:
                 schedule.bot_record = record
             else:
                 record: StandardScheduleRecord
-                schedule = self._schedule_merge[key] if key in self._schedule_merge else _ScheduleDto(
+                schedule = existing or _ScheduleDto(
                     user_unique_name=record.user.unique_name,
                     absolute_start=None,
                     start_time=record.time_start,
@@ -246,6 +250,9 @@ class SpreadsheetSyncService:
                     to_delete_in_table=record.dump_state != DumpStates.TO_SYNC,
                 )
                 schedule.bot_std_record = record
+            if record.dump_state == DumpStates.TO_SYNC:
+                await self._logger.info("synchronized lesson", type=record.__class__, id=record.id)
+                record.dump_state = DumpStates.ACTIVE
             self._schedule_merge[key] = schedule
 
             if schedule.user_unique_name not in self._users_merge:
@@ -268,6 +275,16 @@ class SpreadsheetSyncService:
             "merging schedule", vals=", ".join([f"'{k}':{v.short_str()}" for k, v in self._schedule_merge.items()]))
 
         for merged_record in self._schedule_merge.values():
+            if merged_record.user_unique_name == "-":
+                if not merged_record.absolute_start:
+                    continue
+                self._free_lessons.append(FreeLesson(
+                    lesson_datetime=merged_record.absolute_start,
+                    time_start=merged_record.start_time,
+                    time_end=merged_record.end_time
+                ))
+                continue
+
             if merged_record.to_delete_in_bot and (merged_record.bot_record or merged_record.bot_std_record):
                 to_delete = merged_record.bot_record or merged_record.bot_std_record
                 await self._logger.info("deleting bot schedule record", record_id=to_delete.id)
@@ -308,6 +325,8 @@ class SpreadsheetSyncService:
                     )
                     merged_record.bot_record = new_record
                 self._session.add(new_record)
+
+        BookLessonsService.set_free_lessons(self._free_lessons)
 
     def _merged_schedule_to_table(self) -> list[SpreadsheetScheduleRecord]:
         res: list[SpreadsheetScheduleRecord] = []

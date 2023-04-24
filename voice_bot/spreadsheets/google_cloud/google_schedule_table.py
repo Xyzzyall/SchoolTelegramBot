@@ -56,7 +56,7 @@ class GoogleScheduleTableService(ScheduleTableService):
                 schedule_record = SpreadsheetScheduleRecord(
                     table_name=table_name,
                     user_id=lesson_split[0],
-                    raw_time_start_time_end = row[0],
+                    raw_time_start_time_end=row[0],
                     time_start=start_time,
                     time_end=end_time,
                     day_of_the_week=day + 1,

@@ -16,7 +16,8 @@ from voice_bot.telegram_di_scope import telegramupdate
 class FiredReminder:
     chat_id: str
     minutes: int
-    lesson: ScheduleRecord
+    lesson_id: int
+    user_id: int
 
 
 @telegramupdate
@@ -58,7 +59,11 @@ class RemindersService:
             "start": start,
             "end": end
         })
-        return [FiredReminder(row.chat_id, row.minutes, row) for row in res.all()]
+        return [FiredReminder(
+            chat_id=row.chat_id,
+            minutes=row.minutes,
+            lesson_id=row.lesson_id,
+            user_id=row.lesson_user_id) for row in res]
 
     async def get_fired_reminders_for_admin_at(self, admin: User, time: datetime) -> list[ScheduleRecord]:
         admin_reminders = (await self._session.scalars(
@@ -91,7 +96,12 @@ class RemindersService:
         return reminder
 
     _USER_FIRED_REMINDERS_SQL = text("""
-        SELECT DISTINCT u.telegram_chat_id "chat_id", u_r.remind_minutes_before "minutes", s.* FROM "USERS" u
+        SELECT DISTINCT 
+            u.telegram_chat_id "chat_id", 
+            u_r.remind_minutes_before "minutes", 
+            s.id "lesson_id", 
+            s.user_id "lesson_user_id" 
+        FROM "USERS" u
         JOIN "USERS_REMINDERS" u_r on u.id = u_r.user_id
         JOIN "SCHEDULE" s on u.id = s.user_id
         WHERE u.telegram_chat_id IS NOT NULL
