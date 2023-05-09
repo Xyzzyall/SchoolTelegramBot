@@ -17,3 +17,9 @@ class ScheduleRecordType(Enum):
     ONLINE = 1
     OFFLINE = 2
     RENT = 3
+
+
+class UserActionType(Enum):
+    LESSON = 1
+    LESSON_CANCELLATION = 2
+    SUBSCRIPTION = 3

@@ -77,7 +77,7 @@ class StudentLessonReminderView(BaseView):
                 self.set_view_kwarg("_state", None)
             case self._CANCEL:
                 lesson = await self._get_lesson_from_kwargs()
-                if self._dt.now() - lesson.absolute_start_time < timedelta(hours=self._CAN_CANCEL_HOURS):
+                if lesson.absolute_start_time - self._dt.now() < timedelta(hours=self._CAN_CANCEL_HOURS):
                     await self.tg_context.popup("К сожалению отменить это занятие уже нельзя 😞")
                     return self.nav_context
                 self.set_view_kwarg("_state", self._CANCEL_CONFIRM)

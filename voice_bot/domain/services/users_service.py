@@ -52,6 +52,10 @@ class UsersService:
         query = select(User).where(is_active(User) & (User.is_admin == YesNo.NO))
         return (await self._session.scalars(query)).all()
 
+    async def find_user_by_fullname(self, fullname: str) -> User | None:
+        query = select(User).where(is_active(User) & User.fullname.like(fullname))
+        return await self._session.scalar(query)
+
     async def get_all_regular_users_ordered(self) -> list[User]:
         query = select(User).where(is_active(User) & (User.is_admin == YesNo.NO)).order_by(User.fullname)
         return (await self._session.scalars(query)).all()

@@ -12,6 +12,10 @@ def to_midnight(dt: datetime):
     return dt - timedelta(hours=dt.hour, minutes=dt.minute, seconds=dt.second)
 
 
+def dt_fmt(dt: datetime):
+    return dt.strftime("%d.%m.%y")
+
+
 @singleton
 class DatetimeService:
     @inject

@@ -223,8 +223,13 @@ class AdminBookLesson(_BookLessonBase):
     async def _book_lesson(self):
         dt = self.get_view_kwarg("_datetime")
         user = await self._users.get_user_by_id(self.get_view_kwarg("_user_id"))
+        lesson = BookLessonsService.try_get_free_lesson(dt)
         if user and await self._book.book_lesson(user, dt):
             await self.tg_context.popup("Занятие успешно добавлено 👌")
+            await self._users.send_text_message(
+                user,
+                f"Тук-тук 👀 Вас записали на занятие с {lesson.time_start} по {lesson.time_end} в "
+                f"{DAYS_OF_THE_WEEK[lesson.lesson_datetime.weekday() + 1]} {lesson.lesson_datetime.strftime('%d.%m.%y')}")
         else:
             await self.tg_context.popup("Нельзя забронировать занятие 😥 Возможно, оно уже занято.")
 

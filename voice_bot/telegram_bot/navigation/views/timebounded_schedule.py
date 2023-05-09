@@ -10,7 +10,7 @@ from voice_bot.domain.context import Context
 from voice_bot.domain.services.message_builder import MessageBuilder
 from voice_bot.domain.services.schedule_service import ScheduleService
 from voice_bot.domain.services.users_service import UsersService
-from voice_bot.misc.datetime_service import DatetimeService
+from voice_bot.misc.datetime_service import DatetimeService, to_midnight
 from voice_bot.telegram_bot.navigation.views.text_view import TextView
 from voice_bot.telegram_di_scope import telegramupdate
 
@@ -72,11 +72,11 @@ class TimeBoundedSchedule(TextView):
         time_bound = self.entry.context_vars["time_bound"]
 
         now = self._dt.now()
-        today_begin = datetime(year=now.year, month=now.month, day=now.day, hour=0)
+        today_begin = to_midnight(now)
         today_end = today_begin + timedelta(hours=23, minutes=59)
 
         match time_bound:
-            case "today": return now, today_end
+            case "today": return today_begin, today_end
             case "tomorrow":
                 return today_begin + timedelta(days=1), today_end + timedelta(days=1)
 

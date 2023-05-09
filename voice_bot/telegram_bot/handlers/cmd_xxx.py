@@ -4,8 +4,10 @@ from injector import inject
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from voice_bot.db.update_session import UpdateSession
 from voice_bot.domain.claims.role_claim import RoleClaim
 from voice_bot.domain.roles import UserRoles
+from voice_bot.domain.services.actions_logger import ActionsLoggerService
 from voice_bot.domain.services.cache_service import CacheService
 from voice_bot.domain.services.reminders_service import RemindersService
 from voice_bot.domain.services.schedule_service import ScheduleService
@@ -26,9 +28,10 @@ class CmdXxx(BaseUpdateHandler):
                  cache: CacheService,
                  reminders: RemindersService,
                  schedule: ScheduleService,
-                 #gc_sync: CalendarSyncService,
-                 ):
-        #self._gc_sync = gc_sync
+                 log: ActionsLoggerService,
+                 session: UpdateSession):
+        self._session = session.session
+        self._log = log
         self._schedule = schedule
         self._reminders = reminders
         self._cache = cache
@@ -46,7 +49,6 @@ class CmdXxx(BaseUpdateHandler):
 
         match context.args[0]:
             case "sync": await self._perform_sync(update)
-            #case "gc_sync": await self._gc_sync.sync()
             case "day_reminders": await self._turn_on_day_reminders(update)
             case "spam": await self._users.send_text_message_to_roles(
                 " ".join(context.args[1:]), {UserRoles.sysadmin}, send_as_is=True)
@@ -74,6 +76,32 @@ class CmdXxx(BaseUpdateHandler):
                     usr = await self._users.get_user_by_id(i)
                     mock_user(str(update.effective_user.id), usr)
                     await update.effective_message.reply_text(f"ухуху! теперь ты {usr.fullname}!")
+            case "subs":
+                report = []
+                users = {user.unique_name: user for user in await self._users.get_all_regular_users()}
+                for line in update.effective_message.text.split('\n')[1:]:
+                    sub = line.split("!")
+                    if len(sub) != 2:
+                        report.append(f"не понел '{line}' ето шо?")
+                        continue
+                    un = sub[0]
+
+                    if un not in users:
+                        report.append(f"user not found {un}")
+                        continue
+                    user = users[un]
+
+                    l_info = sub[1].split('/')
+                    if len(l_info) != 2:
+                        report.append(f"не то чето в уроках '{line}'")
+                        continue
+                    l0, l1 = int(l_info[0]), int(l_info[1])
+                    if not self._log.migrate_subscription_and_lessons(user, l0, l1):
+                        report.append(f"ну нету такого абонемента '{line}'")
+                        continue
+                    report.append(f"сделали по красоте '{line}'")
+                await self._session.commit()
+                await update.effective_message.reply_text("вот так вот добавляли абонементы:\n" + "\n".join(report))
             case _: await update.effective_message.reply_text(f"не нашел такой команды: {context.args[0]}")
 
     async def _perform_sync(self, update: Update):

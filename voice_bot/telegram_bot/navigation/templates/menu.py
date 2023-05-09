@@ -4,6 +4,7 @@ from voice_bot.telegram_bot.navigation.templates import _wrap
 from voice_bot.telegram_bot.navigation.templates.help import HELP
 from voice_bot.telegram_bot.navigation.templates.schedule import STUDENT_SCHEDULE, ADMIN_SCHEDULE
 from voice_bot.telegram_bot.navigation.templates.settings import SETTINGS
+from voice_bot.telegram_bot.navigation.templates.subsriptions import ACTION_LOGS, STUDENT_SUBS
 from voice_bot.telegram_bot.navigation.views.text_view import TextView
 
 UNKNOWN_USER_MENU = _TreeEntry(
@@ -28,7 +29,8 @@ STUDENT_MENU = _TreeEntry(
     claims=[CLAIM_STUDENT],
     children={
         "schedule": _wrap(STUDENT_SCHEDULE, "Расписание", (0, 0)),
-        "help": _wrap(HELP, position=(10, 0))
+        "subs": _wrap(STUDENT_SUBS, "Абонементы", (10, 0)),
+        "help": _wrap(HELP, position=(20, 0))
     }
 )
 
@@ -40,6 +42,6 @@ ADMIN_MENU = _TreeEntry(
     children={
         "schedule": _wrap(ADMIN_SCHEDULE, "Расписание", (0, 0)),
         "settings": _wrap(SETTINGS, "Настройки", (10, 0)),
-        "help": _wrap(HELP, position=(20, 0))
+        "subs_and_logs": _wrap(ACTION_LOGS, "Абонементы и действия", (20, 0))
     }
 )

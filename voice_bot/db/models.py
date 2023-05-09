@@ -1,11 +1,11 @@
 from datetime import datetime
 from typing import Optional, List
 
-from sqlalchemy import String, ForeignKey, Enum
+from sqlalchemy import String, ForeignKey, Enum, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from voice_bot.db.base_model import BaseModel
-from voice_bot.db.enums import ScheduleRecordType, DumpStates, YesNo
+from voice_bot.db.enums import ScheduleRecordType, DumpStates, YesNo, UserActionType
 
 
 class User(BaseModel):
@@ -32,6 +32,10 @@ class User(BaseModel):
 
     comments: Mapped[List["UserComment"]] = relationship(
         back_populates="user", cascade="all, delete-orphan", foreign_keys="UserComment.user_id", init=False
+    )
+
+    actions: Mapped[List["UserActions"]] = relationship(
+        back_populates="user", foreign_keys="UserActions.user_id", init=False
     )
 
     std_lessons: Mapped[List["StandardScheduleRecord"]] = relationship(
@@ -85,6 +89,28 @@ class UserComment(BaseModel):
 
     created_by_id: Mapped[int] = mapped_column(ForeignKey("USERS.id"))
     created_by: Mapped["User"] = relationship(foreign_keys=[created_by_id])
+
+
+class UserActions(BaseModel):
+    __tablename__ = "USERS_ACTIONS"
+
+    id: Mapped[int] = mapped_column(primary_key=True, init=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("USERS.id"), init=False, index=True, unique=False)
+    user: Mapped["User"] = relationship(
+        back_populates="actions", foreign_keys=[user_id]
+    )
+    user_unique_name: Mapped[str] = mapped_column(String(30))
+
+    action_type: Mapped[UserActionType] = mapped_column(Enum(UserActionType))
+    log_date: Mapped[datetime]
+
+    subs_quantity: Mapped[Optional[int]] = mapped_column(init=False)
+    subs_cancellations: Mapped[Optional[int]] = mapped_column(init=False)
+    subs_valid_from: Mapped[Optional[datetime]] = mapped_column(init=False)
+    subs_valid_to: Mapped[Optional[datetime]] = mapped_column(init=False)
+
+    updated_on: Mapped[datetime] = mapped_column(onupdate=datetime.now, default_factory=datetime.now)
+    created_on: Mapped[datetime] = mapped_column(default_factory=datetime.now)
 
 
 class StandardScheduleRecord(BaseModel):

@@ -1,6 +1,7 @@
 from injector import inject
 
 from voice_bot.db.models import ScheduleRecord
+from voice_bot.domain.services.actions_logger import ActionsLoggerService
 from voice_bot.domain.services.message_builder import MessageBuilder
 from voice_bot.domain.services.schedule_service import ScheduleService
 from voice_bot.domain.services.users_service import UsersService
@@ -17,8 +18,9 @@ class CancellationConfirmView(BaseView):
     _NO = "no"
 
     @inject
-    def __init__(self, schedule: ScheduleService, msg: MessageBuilder, users: UsersService):
+    def __init__(self, schedule: ScheduleService, msg: MessageBuilder, users: UsersService, log: ActionsLoggerService):
         super().__init__()
+        self._log = log
         self._users = users
         self._msg = msg
         self._schedule = schedule
@@ -53,6 +55,7 @@ class CancellationConfirmView(BaseView):
         match self.get_view_kwarg("_action"):
             case self._YES:
                 await self._schedule.cancel_lesson(lesson_id, user_id)
+                await self._log.log_cancellation(user)
                 self._msg.push_schedule(lesson)
                 await self._users.send_template(user, "Занятие.Запрос_отмены_ОК")
                 self.set_view_kwarg("_state", self._CANCELED)

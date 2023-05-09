@@ -5,6 +5,7 @@ from injector import inject
 from voice_bot.constants import DAYS_OF_THE_WEEK
 from voice_bot.db.models import ScheduleRecord
 from voice_bot.domain.context import Context
+from voice_bot.domain.services.actions_logger import ActionsLoggerService
 from voice_bot.domain.services.message_builder import MessageBuilder
 from voice_bot.domain.services.schedule_service import ScheduleService
 from voice_bot.domain.services.users_service import UsersService
@@ -97,8 +98,14 @@ class AdminCancelLessonView(BaseView):
     _YES = "yes"
 
     @inject
-    def __init__(self, msg: MessageBuilder, schedule: ScheduleService, dt: DatetimeService, users: UsersService):
+    def __init__(self, 
+                 msg: MessageBuilder, 
+                 schedule: ScheduleService, 
+                 dt: DatetimeService, 
+                 users: UsersService, 
+                 log: ActionsLoggerService):
         super().__init__()
+        self._log = log
         self._users = users
         self._dt = dt
         self._schedule = schedule
@@ -149,9 +156,13 @@ class AdminCancelLessonView(BaseView):
                 return {
                     "_yes": _ButtonStab(
                         (100, 0),
-                        "Отменить урок",
+                        "Отменить",
                         kwargs={"_action": self._YES, "_lesson_id": lesson.id, "_user_id": lesson.user_id}),
-                    "_no": _ButtonStab((110, 0), "Назад", kwargs={"_action": self._BACK})
+                    "_yes_with_log": _ButtonStab(
+                        (110, 0),
+                        "Отменить (засчитать в абонемент)",
+                        kwargs={"_action": self._YES, "_log": True, "_lesson_id": lesson.id, "_user_id": lesson.user_id}),
+                    "_no": _ButtonStab((120, 0), "Назад", kwargs={"_action": self._BACK})
                 }
             case _:
                 now = self._dt.now()
@@ -191,6 +202,9 @@ class AdminCancelLessonView(BaseView):
                 await self._users.send_template(
                     await self._users.get_user_by_id(user_id), "Занятие.Отменено_оповещение")
                 await self.tg_context.popup("Занятие успешно отменено, ученику отправлено уведомление.")
+                if self.get_view_kwarg("_log"):
+                    user = await self._users.get_user_by_id(user_id)
+                    await self._log.log_cancellation(user)
                 self.set_view_kwarg("_state", self._SELECT_LESSON)
         return self.nav_context
 
