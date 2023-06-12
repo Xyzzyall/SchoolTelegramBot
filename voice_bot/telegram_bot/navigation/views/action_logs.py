@@ -34,16 +34,22 @@ class ActionLogsView(BaseView):
                 subs = await self._log.count_subscriptions_on_date(user, self._dt.now())
                 for sub in subs:
                     if sub.is_stub:
-                        res.append("*Неучтенные уроки*")
-                        res.append(f"- уроков прошло: {sub.counted_lessons}")
-                        res.append(f"- отмен: {sub.counted_cancellations}")
-                        res.append("")
                         continue
                     res.append(f"*Абонемент с {dt_fmt(sub.valid_from)} по {dt_fmt(sub.valid_to)}*")
                     res.append(f"- уроков прошло: {sub.counted_lessons} из {sub.lessons}")
                     res.append(f"- отмен: {sub.counted_cancellations} из {sub.cancellations}")
                     res.append("")
-                return "\n".join(res)
+                for sub in subs:
+                    if sub.is_stub and (sub.counted_cancellations > 0 or sub.cancellations > 0):
+                        res.append("*Неучтенные уроки и отмены (не попавшие ни в один абонемент):*")
+                        if sub.counted_lessons > 0:
+                            res.append(f"- {sub.counted_lessons} уроков")
+                        if sub.counted_cancellations > 0:
+                            res.append(f"- {sub.counted_cancellations} отмен")
+                        res.append("")
+                        break
+
+                return "\n".join(res) if res else "У ученика нет абонементов и неучтённых занятий и отмен!"
             case self._SUBS_TO_ADD:
                 return "Какой абонемент добавить?"
             case _:
@@ -77,6 +83,11 @@ class ActionLogsView(BaseView):
                 user = await self._users.get_user_by_id(self.get_view_kwarg("_user_id", False))
                 await self._log.log_subscription(user, sub, self._dt.now())
                 await self.tg_context.popup("Абонемент успешно добавлен! 👌")
+                if sub.lessons > 1:
+                    await self._users.send_text_message(
+                        user,
+                        f"Привет! Тебе добавлен абонемент на {sub.lessons} занятий 🤞"
+                    )
                 self.set_view_kwarg("_state", self._LOG_FOR_USER)
             case self._BACK:
                 match self.get_view_kwarg("_state", False):

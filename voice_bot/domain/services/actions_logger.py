@@ -59,7 +59,7 @@ class Subscription:
         return True
 
     def is_valid(self, dt: datetime):
-        return self.valid_from < dt < self.valid_to
+        return self.valid_from <= dt <= self.valid_to
 
     def is_exhausted(self):
         return self.is_stub or self.lessons >= self.counted_lessons
@@ -123,15 +123,18 @@ class ActionsLoggerService:
 
         for user in users_to_check:
             subs = await self.count_subscriptions_on_date(user, for_time)
-            exhausted = 0
+            remain_lessons = 0
             for s in subs:
-                if not s.is_valid(for_time) or s.is_exhausted():
-                    exhausted += 1
-            if exhausted == len(subs):
-                await self._users.send_text_message_to_admins(
-                    f"У ученика {user.fullname} закончился абонемент!"
-                )
-                await self._users.send_text_message(user, "У тебя закончился абонемент 😢\n\nНе забудь продлить его!")
+                if s.is_valid(for_time) and s.lessons == 1:
+                    remain_lessons = -1
+                    break
+
+                if s.is_valid(for_time):
+                    diff = s.lessons - s.counted_lessons
+                    remain_lessons += diff if diff > 0 else 0
+
+            if remain_lessons == 0:
+                await self._users.send_text_message_to_admins(f"У ученика {user.fullname} кончился абонемент!")
 
     async def log_subscription(
             self,
@@ -206,7 +209,7 @@ class ActionsLoggerService:
                 case UserActionType.LESSON | UserActionType.LESSON_CANCELLATION:
                     for sub in reversed(res):
                         sub: Subscription
-                        if not sub.is_valid(dt):
+                        if not sub.is_valid(action.log_date):
                             continue
                         if action.action_type == UserActionType.LESSON:
                             if sub.try_add_lesson(action.log_date):

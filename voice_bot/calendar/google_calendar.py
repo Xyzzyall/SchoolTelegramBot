@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-from typing import Iterable
 
 import structlog
 from gcsa.attendee import Attendee

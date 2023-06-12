@@ -1,20 +1,15 @@
-from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 
-from injector import singleton, inject
+import structlog
+from injector import inject
+from sqlalchemy import select
 
-from voice_bot.db.enums import ScheduleRecordType, DumpStates
-from voice_bot.db.models import User, ScheduleRecord
+from voice_bot.db.enums import ScheduleRecordType, DumpStates, YesNo
+from voice_bot.db.models import User, ScheduleRecord, FreeLesson
 from voice_bot.db.update_session import UpdateSession
 from voice_bot.domain.services.schedule_service import ScheduleService
+from voice_bot.misc.datetime_service import to_midnight, to_day_end, str_hours_from_dt
 from voice_bot.telegram_di_scope import telegramupdate
-
-
-@dataclass
-class FreeLesson:
-    lesson_datetime: datetime
-    time_start: str
-    time_end: str
 
 
 @telegramupdate
@@ -25,20 +20,18 @@ class BookLessonsService:
     def __init__(self, schedule: ScheduleService, session: UpdateSession):
         self._session = session()
         self._schedule = schedule
+        self._logger = structlog.get_logger(class_name=__class__.__name__)
 
     async def book_lesson(self, user: User, dt: datetime) -> ScheduleRecord | None:
-        if dt not in BookLessonsService._free_lessons:
+        free_lessons = await self.get_free_lessons(dt)
+        time_start = str_hours_from_dt(dt)
+        if time_start not in free_lessons:
             return None
 
-        lessons = await self._schedule.get_schedule(dt - timedelta(minutes=10), dt + timedelta(minutes=10))
-        if lessons:
-            del BookLessonsService._free_lessons[dt]
-            return None
-
-        free = BookLessonsService._free_lessons[dt]
+        free = free_lessons[time_start]
         new_record = ScheduleRecord(
             user=user,
-            absolute_start_time=free.lesson_datetime,
+            absolute_start_time=dt,
             time_start=free.time_start,
             time_end=free.time_end,
             type=ScheduleRecordType.OFFLINE,
@@ -46,25 +39,62 @@ class BookLessonsService:
         )
         self._session.add(new_record)
         await self._session.commit()
-        del BookLessonsService._free_lessons[dt]
         return new_record
 
-    @staticmethod
-    def set_free_lessons(lessons: list[FreeLesson]):
-        BookLessonsService._free_lessons.clear()
-        for lesson in lessons:
-            BookLessonsService._free_lessons[lesson.lesson_datetime] = lesson
+    async def get_free_lessons(self, on_day: datetime, show_vacant: bool = True) -> dict[str, FreeLesson]:
+        queue = select(FreeLesson)\
+            .where((FreeLesson.weekday == on_day.weekday()) & (FreeLesson.is_active == YesNo.YES))
 
-    @staticmethod
-    def get_free_lessons_for(start: datetime, end: datetime) -> list[FreeLesson]:
-        res = []
-        for lesson in BookLessonsService._free_lessons.values():
-            if start <= lesson.lesson_datetime <= end:
-                res.append(lesson)
+        res = {free.time_start: free for free in (await self._session.scalars(queue)).all()}
+        if show_vacant:
+            lessons = await self._schedule.get_schedule(to_midnight(on_day), to_day_end(on_day))
+            for lesson in lessons:
+                if lesson.time_start in res:
+                    del res[lesson.time_start]
+
         return res
 
-    @staticmethod
-    def try_get_free_lesson(dt: datetime):
-        if dt not in BookLessonsService._free_lessons:
-            return None
-        return BookLessonsService._free_lessons[dt]
+    async def get_all_free_lessons(self) -> list[FreeLesson]:
+        queue = select(FreeLesson).where((FreeLesson.is_active == YesNo.YES))
+        return await self._session.scalars(queue)
+
+    async def get_free_lessons_weekday(self, weekday: int) -> dict[str, FreeLesson]:
+        queue = select(FreeLesson).where((FreeLesson.is_active == YesNo.YES) & (FreeLesson.weekday == weekday))
+        return {lesson.time_start: lesson for lesson in await self._session.scalars(queue)}
+
+    async def get_free_lesson_by_id(self, id: int, only_active: bool = False) -> FreeLesson | None:
+        queue = select(FreeLesson).where((FreeLesson.id == id) & (FreeLesson.is_active == YesNo.YES)) if only_active\
+            else select(FreeLesson).where((FreeLesson.id == id))
+        return await self._session.scalar(queue)
+
+    async def get_free_lesson(self, weekday: int, time_start: str, time_end: str) -> FreeLesson | None:
+        queue = select(FreeLesson).where((FreeLesson.weekday == weekday) &
+                                         (FreeLesson.time_start == time_start) &
+                                         (FreeLesson.time_end == time_end))
+        return await self._session.scalar(queue)
+
+    async def toggle_free_lesson(self, weekday: int, time_start: str, time_end: str):
+        lesson = await self.get_free_lesson(weekday, time_start, time_end)
+        if not lesson:
+            await self.create_free_lesson(weekday, time_start, time_end)
+            return
+        lesson.is_active = YesNo.YES if lesson.is_active == YesNo.NO else YesNo.NO
+        await self._session.commit()
+
+    async def try_get_free_lesson(self, dt: datetime):
+        lessons = await self.get_free_lessons(dt)
+        return lessons.get(str_hours_from_dt(dt))
+
+    async def create_free_lesson(self, weekday: int, time_start: str, time_end: str):
+        maybe_lesson = await self.get_free_lesson(weekday, time_start, time_end)
+        if maybe_lesson and maybe_lesson.is_active == YesNo.NO:
+            maybe_lesson.is_active = YesNo.YES
+            await self._session.commit()
+            return
+
+        lesson = FreeLesson(weekday=weekday, time_start=time_start, time_end=time_end, is_active=YesNo.YES)
+        self._session.add(lesson)
+        await self._session.commit()
+
+
+

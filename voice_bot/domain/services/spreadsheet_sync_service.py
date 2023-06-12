@@ -276,13 +276,6 @@ class SpreadsheetSyncService:
 
         for merged_record in self._schedule_merge.values():
             if merged_record.user_unique_name == "-":
-                if not merged_record.absolute_start:
-                    continue
-                self._free_lessons.append(FreeLesson(
-                    lesson_datetime=merged_record.absolute_start,
-                    time_start=merged_record.start_time,
-                    time_end=merged_record.end_time
-                ))
                 continue
 
             if merged_record.to_delete_in_bot and (merged_record.bot_record or merged_record.bot_std_record):
@@ -325,8 +318,6 @@ class SpreadsheetSyncService:
                     )
                     merged_record.bot_record = new_record
                 self._session.add(new_record)
-
-        BookLessonsService.set_free_lessons(self._free_lessons)
 
     def _merged_schedule_to_table(self) -> list[SpreadsheetScheduleRecord]:
         res: list[SpreadsheetScheduleRecord] = []

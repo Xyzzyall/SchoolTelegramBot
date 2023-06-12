@@ -1,5 +1,4 @@
-from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from injector import inject
 from sqlalchemy import select
@@ -9,7 +8,7 @@ from voice_bot.db.enums import DumpStates
 from voice_bot.db.models import StandardScheduleRecord, User, ScheduleRecord
 from voice_bot.db.shortcuts import is_active
 from voice_bot.db.update_session import UpdateSession
-from voice_bot.misc.datetime_service import DatetimeService
+from voice_bot.misc.datetime_service import DatetimeService, str_hours_from_dt
 from voice_bot.spreadsheets.params_table import ParamsTableService
 from voice_bot.telegram_di_scope import telegramupdate
 
@@ -83,3 +82,18 @@ class ScheduleService:
         lesson.dump_state = DumpStates.BOT_DELETED
         await self._session.commit()
         return True
+
+    async def move_lesson_to(self, lesson: ScheduleRecord, to_date: datetime):
+        lesson.absolute_start_time = to_date
+        lesson.time_start = str_hours_from_dt(to_date)
+        lesson.time_end = str_hours_from_dt(to_date + timedelta(minutes=50))
+        lesson.dump_state = DumpStates.TO_SYNC
+        await self._session.commit()
+
+    async def swap_lessons(self, lesson1: ScheduleRecord, lesson2: ScheduleRecord):
+        lesson1.user, lesson2.user = lesson2.user, lesson1.user
+        lesson1.user_id, lesson2.user_id = lesson2.user_id, lesson1.user_id
+        lesson1.dump_state = DumpStates.TO_SYNC
+        lesson2.dump_state = DumpStates.TO_SYNC
+        await self._session.commit()
+

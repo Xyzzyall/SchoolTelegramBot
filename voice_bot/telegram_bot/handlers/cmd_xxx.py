@@ -5,9 +5,9 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from voice_bot.db.update_session import UpdateSession
-from voice_bot.domain.claims.role_claim import RoleClaim
 from voice_bot.domain.roles import UserRoles
 from voice_bot.domain.services.actions_logger import ActionsLoggerService
+from voice_bot.domain.services.book_lesson_service import BookLessonsService
 from voice_bot.domain.services.cache_service import CacheService
 from voice_bot.domain.services.reminders_service import RemindersService
 from voice_bot.domain.services.schedule_service import ScheduleService
@@ -29,7 +29,9 @@ class CmdXxx(BaseUpdateHandler):
                  reminders: RemindersService,
                  schedule: ScheduleService,
                  log: ActionsLoggerService,
-                 session: UpdateSession):
+                 session: UpdateSession,
+                 book: BookLessonsService):
+        self.book = book
         self._session = session.session
         self._log = log
         self._schedule = schedule
@@ -102,7 +104,20 @@ class CmdXxx(BaseUpdateHandler):
                     report.append(f"сделали по красоте '{line}'")
                 await self._session.commit()
                 await update.effective_message.reply_text("вот так вот добавляли абонементы:\n" + "\n".join(report))
+            case "frees":
+                weekday = int(context.args[1])
+                from_hour = int(context.args[2])
+                to_hour = int(context.args[3])
+                for i in range(from_hour, to_hour):
+                    await self.book.create_free_lesson(weekday, f"{i:02d}:00", f"{i:02d}:50")
+                await update.effective_message.reply_text("\n".join(await self._free_lessons_report_lines(weekday)))
             case _: await update.effective_message.reply_text(f"не нашел такой команды: {context.args[0]}")
+
+    async def _free_lessons_report_lines(self, weekday) -> list[str]:
+        report = []
+        for free in (await self.book.get_free_lessons_weekday(weekday)).values():
+            report.append(f"free_lesson(start:{free.time_start}, end:{free.time_end})")
+        return report
 
     async def _perform_sync(self, update: Update):
         self._cache.clear_all_cache()

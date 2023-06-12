@@ -160,3 +160,14 @@ class ScheduleRecord(BaseModel):
     updated_on: Mapped[datetime] = mapped_column(onupdate=datetime.now, default_factory=datetime.now)
     created_on: Mapped[datetime] = mapped_column(default_factory=datetime.now)
 
+
+class FreeLesson(BaseModel):
+    __tablename__ = "FREE_LESSON"
+
+    id: Mapped[int] = mapped_column(primary_key=True, init=False)
+
+    weekday: Mapped[int] = mapped_column(Integer)
+    time_start: Mapped[str] = mapped_column(String(16))
+    time_end: Mapped[str] = mapped_column(String(16))
+
+    is_active: Mapped[YesNo] = mapped_column(Enum(YesNo))

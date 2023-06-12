@@ -1,3 +1,4 @@
+import structlog
 from injector import inject
 from sqlalchemy import select
 from sqlalchemy.orm import subqueryload
@@ -26,6 +27,7 @@ class UsersService:
         self._msg_builder = msg_builder
         self._session = session.session
         self._tg_bot_proxy = tg_bot_proxy
+        self._logger = structlog.get_logger(class_name=__class__.__name__)
 
     async def send_text_message_to_roles(self, template_or_msg: str, roles: set[str], send_as_is: bool = False):
         query = select(User).where(User.roles.any(UserRole.role_name.in_(roles)))
@@ -67,6 +69,7 @@ class UsersService:
         if not chat_id:
             return
         text = await self._msg_builder.format(template)
+        await self._logger.info("sent message to user", chat_id=chat_id, text=text)
         await self._tg_bot_proxy.bot.send_message(chat_id, text, parse_mode='Markdown')
 
     async def send_text_message(self, user: User | str, text: str, mock: bool = True):
@@ -75,6 +78,7 @@ class UsersService:
             chat_id = try_mock_subj_to_chat_id(user)
         if not chat_id:
             return
+        await self._logger.info("sent message to user", chat_id=chat_id, text=text)
         await self._tg_bot_proxy.bot.send_message(chat_id, text, parse_mode='Markdown')
 
     async def send_text_message_to_admins(self, text: str):
@@ -98,6 +102,7 @@ class UsersService:
             chat_id = try_mock_subj_to_chat_id(user)
         if not chat_id:
             return
+        await self._logger.info("sent menu to user", chat_id=chat_id, menu=menu)
         await self._navigation.send_template_to_chat(chat_id, menu, kwargs=kwargs)
 
 

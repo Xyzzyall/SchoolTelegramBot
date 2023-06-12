@@ -2,6 +2,7 @@ from voice_bot.domain.claims.shortcuts import CLAIM_SYSADMIN
 from voice_bot.telegram_bot.navigation.actions.clear_cache import ClearCache
 from voice_bot.telegram_bot.navigation.actions.perform_sync import PerformSync
 from voice_bot.telegram_bot.navigation.base_classes import _TreeEntry
+from voice_bot.telegram_bot.navigation.views.free_lessons_settings import FreeLessonsSettingsView
 from voice_bot.telegram_bot.navigation.views.text_view import TextView
 
 SETTINGS = _TreeEntry(
@@ -39,6 +40,12 @@ SETTINGS = _TreeEntry(
                     title="Провести синхронизацию",
                 ),
             }
+        ),
+        "free_lessons": _TreeEntry(
+            element_type=FreeLessonsSettingsView,
+            position=(30, 0),
+            claims=[CLAIM_SYSADMIN],
+            title="Окна для бронирования"
         )
     }
 )

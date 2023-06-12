@@ -3,6 +3,7 @@ from voice_bot.telegram_bot.navigation.actions.set_reminder import SetReminder
 from voice_bot.telegram_bot.navigation.base_classes import _TreeEntry
 from voice_bot.telegram_bot.navigation.views.book_lesson import StudentBookLesson, AdminBookLesson
 from voice_bot.telegram_bot.navigation.views.cancel_lesson import StudentCancelLessonView, AdminCancelLessonView
+from voice_bot.telegram_bot.navigation.views.lesson_swap import LessonSwapView
 from voice_bot.telegram_bot.navigation.views.next_lesson import NextLesson
 from voice_bot.telegram_bot.navigation.views.standard_schedule import StandardSchedule
 from voice_bot.telegram_bot.navigation.views.text_view import TextView
@@ -169,6 +170,11 @@ ADMIN_SCHEDULE = _TreeEntry(
             element_type=AdminBookLesson,
             title="Записать ученика на занятие",
             position=(40, 0)
+        ),
+        "swap_lessons": _TreeEntry(
+            element_type=LessonSwapView,
+            title="Перемещение уроков",
+            position=(50, 0)
         )
     }
 )

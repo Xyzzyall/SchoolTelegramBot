@@ -3,10 +3,7 @@ from injector import inject
 from telegram.ext import ContextTypes
 
 from voice_bot.db.update_session import UpdateSession
-from voice_bot.domain.services.actions_logger import ActionsLoggerService
-from voice_bot.domain.services.calendar_sync_service import CalendarSyncService
 from voice_bot.domain.services.spreadsheet_sync_service import SpreadsheetSyncService
-from voice_bot.misc.datetime_service import DatetimeService
 from voice_bot.telegram_bot.base_handler import BaseScheduleHandler
 from voice_bot.telegram_di_scope import telegramupdate
 

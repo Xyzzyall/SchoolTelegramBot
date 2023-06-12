@@ -1,12 +1,10 @@
 import math
-from collections import defaultdict
 from datetime import timedelta, date, datetime
 from typing import Iterable
 
 from injector import inject
 
 from voice_bot.misc.simple_cache import simplecache
-from voice_bot.spreadsheets.exceptions import ScheduleWeekIsNotFoundException
 from voice_bot.spreadsheets.google_cloud.gspread import GspreadClient
 from voice_bot.spreadsheets.models.spreadsheet_schedule_record import SpreadsheetScheduleRecord
 from voice_bot.spreadsheets.schedule_table import ScheduleTableService
@@ -225,7 +223,7 @@ class GoogleScheduleTableService(ScheduleTableService):
     async def _rewrite_schedule_table(self, sheet_name: str, content: list[list[str]], monday: datetime | None = None):
         worksheet = await self._gspread.get_schedule_worksheet(sheet_name)
         update = [{
-            'range': 'B3:H12',
+            'range': 'B3:H14',
             'values': content,
         }]
         if monday:

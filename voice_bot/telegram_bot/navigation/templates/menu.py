@@ -29,7 +29,7 @@ STUDENT_MENU = _TreeEntry(
     claims=[CLAIM_STUDENT],
     children={
         "schedule": _wrap(STUDENT_SCHEDULE, "Расписание", (0, 0)),
-        "subs": _wrap(STUDENT_SUBS, "Абонементы", (10, 0)),
+        "subs": _wrap(STUDENT_SUBS, "Абонементы (пока сломаны!)", (10, 0)),
         "help": _wrap(HELP, position=(20, 0))
     }
 )

@@ -10,7 +10,6 @@ from voice_bot.db.update_session import UpdateSession
 from voice_bot.domain.claims.base import BaseClaim, ClaimDefinition
 from voice_bot.domain.context import Context
 from voice_bot.domain.services.message_builder import MessageBuilder
-from voice_bot.domain.services.users_service import UsersService
 from voice_bot.domain.utils.user_utils import user_has_roles
 from voice_bot.misc import simple_cache
 from voice_bot.misc.cached import Cached
