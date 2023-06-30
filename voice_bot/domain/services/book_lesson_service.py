@@ -41,6 +41,13 @@ class BookLessonsService:
         await self._session.commit()
         return new_record
 
+    async def move_lesson(self, lesson: ScheduleRecord, dt: datetime) -> ScheduleRecord:
+        # will stay before I delete google spreadsheets integration
+        new_lesson = await self.book_lesson(lesson.user, dt)
+        lesson.dump_state = DumpStates.BOT_DELETED
+        await self._session.commit()
+        return new_lesson
+
     async def get_free_lessons(self, on_day: datetime, show_vacant: bool = True) -> dict[str, FreeLesson]:
         queue = select(FreeLesson)\
             .where((FreeLesson.weekday == on_day.weekday()) & (FreeLesson.is_active == YesNo.YES))

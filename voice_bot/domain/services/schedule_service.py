@@ -92,7 +92,6 @@ class ScheduleService:
 
     async def swap_lessons(self, lesson1: ScheduleRecord, lesson2: ScheduleRecord):
         lesson1.user, lesson2.user = lesson2.user, lesson1.user
-        lesson1.user_id, lesson2.user_id = lesson2.user_id, lesson1.user_id
         lesson1.dump_state = DumpStates.TO_SYNC
         lesson2.dump_state = DumpStates.TO_SYNC
         await self._session.commit()

@@ -147,12 +147,13 @@ class LessonSwapView(BaseView):
                     if not free_lesson:
                         await self.tg_context.popup("Что-то переплелось и выбранное окно уже занято 😥")
                     else:
-                        await self.schedule.move_lesson_to(from_swap, day_with_str_hours(day, free_lesson.time_start))
+                        new_lesson = await self.book.move_lesson(
+                            from_swap, day_with_str_hours(day, free_lesson.time_start))
                         await self.tg_context.popup(f"Урок переставлен успешно!")
                         await self.users.send_text_message(
                             from_swap.user,
-                            user_msg + f"Теперь он c {from_swap.time_start} по {from_swap.time_end} в "
-                                       f"{dt_fmt_rus(from_swap.absolute_start_time)}!")
+                            user_msg + f"Теперь он c {new_lesson.time_start} по {new_lesson.time_end} в "
+                                       f"{dt_fmt_rus(new_lesson.absolute_start_time)}!")
 
                 else:
                     to_swap_lesson = await self.schedule.get_lesson_by_id(to_swap)

@@ -22,6 +22,10 @@ def dt_fmt(dt: datetime) -> str:
     return dt.strftime("%d.%m.%y")
 
 
+def dt_fmt_time(dt: datetime) -> str:
+    return dt.strftime("%d.%m.%y %H:%M")
+
+
 def dt_fmt_rus(dt: datetime) -> str:
     return f"{DAYS_OF_THE_WEEK[dt.weekday() + 1]} ({dt_fmt(dt)})"
 
@@ -37,6 +41,20 @@ def day_with_str_hours(day: datetime, time: str) -> datetime:
 
 def str_hours_from_dt(dt: datetime) -> str:
     return f"{dt.hour:02d}:{dt.minute:02d}"
+
+
+def str_timedelta_days(days: int, dt: datetime) -> str:
+    match days:
+        case 0:
+            return f"Сегодня {dt_fmt_rus(dt)}"
+        case 1:
+            return f"Завтра {dt_fmt_rus(dt)}"
+        case 2:
+            return f"Послезавтра {dt_fmt_rus(dt)}"
+        case 3 | 4:
+            return f"Через {days} дня {dt_fmt_rus(dt)}"
+        case _:
+            return f"Через {days} дней {dt_fmt_rus(dt)}"
 
 
 @singleton

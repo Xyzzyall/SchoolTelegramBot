@@ -250,6 +250,7 @@ class SpreadsheetSyncService:
                     to_delete_in_table=record.dump_state != DumpStates.TO_SYNC,
                 )
                 schedule.bot_std_record = record
+            dump_state = record.dump_state
             if record.dump_state == DumpStates.TO_SYNC:
                 await self._logger.info("synchronized lesson", type=record.__class__, id=record.id)
                 record.dump_state = DumpStates.ACTIVE
@@ -263,9 +264,12 @@ class SpreadsheetSyncService:
                 continue
 
             if schedule.user_unique_name != record.user.unique_name:
-                record.user = self._users_merge[schedule.user_unique_name].bot_record
-                record.dump_state = DumpStates.ACTIVE
-                record.type = ScheduleRecordType.ONLINE if schedule.is_online else ScheduleRecordType.OFFLINE
+                if dump_state == DumpStates.TO_SYNC:
+                    schedule.user_unique_name = record.user.unique_name
+                else:
+                    record.user = self._users_merge[schedule.user_unique_name].bot_record
+                    record.dump_state = DumpStates.ACTIVE
+                    record.type = ScheduleRecordType.ONLINE if schedule.is_online else ScheduleRecordType.OFFLINE
                 continue
 
             schedule.to_delete_in_table = schedule.to_delete_in_table or record.dump_state == DumpStates.BOT_DELETED

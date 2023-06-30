@@ -46,14 +46,14 @@ class Subscription:
     is_stub: bool = field(default=False)
 
     def try_add_lesson(self, dt: datetime) -> bool:
-        if not self.is_stub and (self.lessons == self.counted_lessons or not self.valid_from < dt < self.valid_to):
+        if not self.is_stub and (self.lessons <= self.counted_lessons or not self.is_valid(dt)):
             return False
         self.counted_lessons += 1
         return True
 
     def try_add_cancel(self, dt: datetime) -> bool:
         if not self.is_stub and \
-                (self.cancellations == self.counted_cancellations or not self.valid_from < dt < self.valid_to):
+                (self.cancellations == self.counted_cancellations or not self.is_valid(dt)):
             return False
         self.counted_cancellations += 1
         return True
@@ -62,7 +62,7 @@ class Subscription:
         return self.valid_from <= dt <= self.valid_to
 
     def is_exhausted(self):
-        return self.is_stub or self.lessons >= self.counted_lessons
+        return self.is_stub or self.counted_lessons >= self.lessons
 
     @staticmethod
     def stub() -> "Subscription":
@@ -78,12 +78,12 @@ class ActionsLoggerService:
         self._session = session.session
         self._logger = structlog.get_logger(class_name=__class__.__name__)
 
-    async def log_lesson(self, user: User):
+    async def log_lesson(self, user: User, dt: datetime = None):
         self._session.add(UserActions(
             user=user,
             user_unique_name=user.unique_name,
             action_type=UserActionType.LESSON,
-            log_date=self._dt.now()
+            log_date=self._dt.now() if not dt else dt
         ))
         await self._session.commit()
 
@@ -95,6 +95,12 @@ class ActionsLoggerService:
             log_date=self._dt.now()
         ))
         await self._session.commit()
+
+    async def get_actions_for_user(self, user: User, dt_from: datetime, dt_to: datetime) -> list[UserActions]:
+        query = select(UserActions) \
+            .where((UserActions.user == user) &
+                   (UserActions.log_date.between(dt_from, dt_to)))
+        return await self._session.scalars(query)
 
     async def autolog_lesson(self, for_time: datetime):
         from_time = for_time - timedelta(hours=1, minutes=15)
@@ -123,24 +129,19 @@ class ActionsLoggerService:
 
         for user in users_to_check:
             subs = await self.count_subscriptions_on_date(user, for_time)
-            remain_lessons = 0
+            non_valid_subs = 0
             for s in subs:
-                if s.is_valid(for_time) and s.lessons == 1:
-                    remain_lessons = -1
-                    break
+                if s.is_exhausted() or not s.is_valid(for_time):
+                    non_valid_subs += 1
 
-                if s.is_valid(for_time):
-                    diff = s.lessons - s.counted_lessons
-                    remain_lessons += diff if diff > 0 else 0
-
-            if remain_lessons == 0:
+            if non_valid_subs == len(subs):
                 await self._users.send_text_message_to_admins(f"У ученика {user.fullname} кончился абонемент!")
 
     async def log_subscription(
             self,
             user: User,
             template: SubscriptionTemplate,
-            from_date: datetime):
+            from_date: datetime) -> UserActions:
         sub = UserActions(
             user=user,
             user_unique_name=user.unique_name,
@@ -153,6 +154,7 @@ class ActionsLoggerService:
         sub.subs_valid_to = sub.subs_valid_from + template.timespan
         self._session.add(sub)
         await self._session.commit()
+        return sub
 
     def migrate_subscription_and_lessons(self, user: User, exhausted: int, lessons: int) -> bool:
         def subscription_for_lessons() -> SubscriptionTemplate | None:
@@ -194,7 +196,7 @@ class ActionsLoggerService:
         actions = (await self._session.scalars(query)).all()
 
         res = SortedList[Subscription](key=lambda x: x.valid_from)
-        res.add(Subscription.stub())
+        stub = Subscription.stub()
         for action in actions:
             if action.action_type == UserActionType.SUBSCRIPTION:
                 res.add(Subscription(
@@ -204,18 +206,25 @@ class ActionsLoggerService:
                     valid_to=action.subs_valid_to
                 ))
 
-        for action in actions:
-            match action.action_type:
-                case UserActionType.LESSON | UserActionType.LESSON_CANCELLATION:
-                    for sub in reversed(res):
-                        sub: Subscription
-                        if not sub.is_valid(action.log_date):
-                            continue
-                        if action.action_type == UserActionType.LESSON:
-                            if sub.try_add_lesson(action.log_date):
-                                break
-                        else:
-                            if sub.try_add_cancel(action.log_date):
-                                break
+        def register_action(subs, action) -> bool:
+            for sub in subs:
+                sub: Subscription
+                if not sub.is_valid(action.log_date):
+                    continue
+
+                match action.action_type:
+                    case UserActionType.LESSON:
+                        if sub.try_add_lesson(action.log_date):
+                            return True
+                    case UserActionType.LESSON_CANCELLATION:
+                        if sub.try_add_cancel(action.log_date):
+                            return True
+            return False
+
+        for action in filter(lambda a: a.action_type != UserActionType.SUBSCRIPTION, actions):
+            if not register_action(res, action):
+                register_action([stub], action)
+
+        res.add(stub)
 
         return [v for v in res]

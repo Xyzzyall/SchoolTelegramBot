@@ -57,7 +57,7 @@ class GoogleParamsTableService(ParamsTableService):
         templates = await self._get_templates()
 
         if key not in templates:
-            raise KeyError("Message template is not found")
+            return key
 
         params = await self._get_params()
 
