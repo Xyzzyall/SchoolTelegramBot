@@ -2,7 +2,7 @@ from datetime import timedelta
 
 from injector import inject
 
-from voice_bot.domain.services.actions_logger import ActionsLoggerService, SUBSCRIPTIONS
+from voice_bot.domain.services.actions_logger import ActionsLoggerService, SUBSCRIPTIONS, Subscription
 from voice_bot.domain.services.users_service import UsersService
 from voice_bot.misc.datetime_service import DatetimeService, dt_fmt, str_timedelta_days, dt_fmt_rus
 from voice_bot.telegram_bot.navigation.base_classes import BaseView, NavigationContext, _ButtonStab
@@ -35,22 +35,27 @@ class ActionLogsView(BaseView):
                 res: list[str] = []
                 user = await self._users.get_user_by_id(self.get_view_kwarg("_user_id", False))
                 subs = await self._log.count_subscriptions_on_date(user, self._dt.now())
+                stub_sub: Subscription = None
                 for sub in subs:
                     if sub.is_stub:
+                        stub_sub = sub
                         continue
                     res.append(f"*Абонемент с {dt_fmt(sub.valid_from)} по {dt_fmt(sub.valid_to)}*")
                     res.append(f"- уроков прошло: {sub.counted_lessons} из {sub.lessons}")
                     res.append(f"- отмен: {sub.counted_cancellations} из {sub.cancellations}")
                     res.append("")
-                for sub in subs:
-                    if sub.is_stub and (sub.counted_cancellations > 0 or sub.cancellations > 0):
-                        res.append("*Неучтенные уроки и отмены (не попавшие ни в один абонемент):*")
-                        if sub.counted_lessons > 0:
-                            res.append(f"- {sub.counted_lessons} уроков")
-                        if sub.counted_cancellations > 0:
-                            res.append(f"- {sub.counted_cancellations} отмен")
-                        res.append("")
-                        break
+
+                if not stub_sub:
+                    raise RuntimeError("stub sub is not found")
+
+                if stub_sub.counted_lessons == 0 and stub_sub.counted_cancellations == 0:
+                    res.append("У ученика нет неучтенных уроков и отмен.")
+                else:
+                    res.append(f"Не учтено *{stub_sub.counted_lessons}* уроков, их даты:")
+                    for dt in stub_sub.lesson_dates:
+                        res.append(f"- урок {dt_fmt(dt)}")
+                    res.append("")
+                    res.append(f"Не учтено *{stub_sub.counted_cancellations}* отмен.")
 
                 return "\n".join(res) if res else "У ученика нет абонементов и неучтённых занятий и отмен!"
             case "add_sub":

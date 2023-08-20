@@ -8,7 +8,8 @@ from voice_bot.db.enums import ScheduleRecordType, DumpStates, YesNo
 from voice_bot.db.models import User, ScheduleRecord, FreeLesson
 from voice_bot.db.update_session import UpdateSession
 from voice_bot.domain.services.schedule_service import ScheduleService
-from voice_bot.misc.datetime_service import to_midnight, to_day_end, str_hours_from_dt
+from voice_bot.domain.services.users_service import UsersService
+from voice_bot.misc.datetime_service import to_midnight, to_day_end, str_hours_from_dt, dt_fmt_rus, dt_fmt_time
 from voice_bot.telegram_di_scope import telegramupdate
 
 
@@ -17,7 +18,8 @@ class BookLessonsService:
     _free_lessons: dict[datetime, FreeLesson] = {}
 
     @inject
-    def __init__(self, schedule: ScheduleService, session: UpdateSession):
+    def __init__(self, schedule: ScheduleService, session: UpdateSession, users: UsersService):
+        self.users = users
         self._session = session()
         self._schedule = schedule
         self._logger = structlog.get_logger(class_name=__class__.__name__)
@@ -39,6 +41,7 @@ class BookLessonsService:
         )
         self._session.add(new_record)
         await self._session.commit()
+        await self.users.send_text_message_to_admins(f"Ученик {user.fullname} успешно записан на {dt_fmt_time(dt)}")
         return new_record
 
     async def move_lesson(self, lesson: ScheduleRecord, dt: datetime) -> ScheduleRecord:
@@ -46,6 +49,9 @@ class BookLessonsService:
         new_lesson = await self.book_lesson(lesson.user, dt)
         lesson.dump_state = DumpStates.BOT_DELETED
         await self._session.commit()
+        await self.users.send_text_message_to_admins(
+            f"Урок ученика {lesson.user.fullname} успешно перемещен с "
+            f"{dt_fmt_time(lesson.absolute_start_time)} на {dt_fmt_time(dt)}")
         return new_lesson
 
     async def get_free_lessons(self, on_day: datetime, show_vacant: bool = True) -> dict[str, FreeLesson]:

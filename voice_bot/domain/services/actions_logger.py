@@ -11,7 +11,7 @@ from voice_bot.db.enums import UserActionType
 from voice_bot.db.models import User, UserActions, ScheduleRecord
 from voice_bot.db.update_session import UpdateSession
 from voice_bot.domain.services.users_service import UsersService
-from voice_bot.misc.datetime_service import DatetimeService, to_midnight
+from voice_bot.misc.datetime_service import DatetimeService, to_midnight, to_day_end
 from voice_bot.telegram_di_scope import telegramupdate
 
 
@@ -40,7 +40,9 @@ class Subscription:
     valid_from: datetime
     valid_to: datetime
 
+    lesson_dates: list[datetime] = field(default_factory=list)
     counted_lessons: int = field(default=0)
+    cancellation_dates: list[datetime] = field(default_factory=list)
     counted_cancellations: int = field(default=0)
 
     is_stub: bool = field(default=False)
@@ -48,6 +50,7 @@ class Subscription:
     def try_add_lesson(self, dt: datetime) -> bool:
         if not self.is_stub and (self.lessons <= self.counted_lessons or not self.is_valid(dt)):
             return False
+        self.lesson_dates.append(dt)
         self.counted_lessons += 1
         return True
 
@@ -55,11 +58,12 @@ class Subscription:
         if not self.is_stub and \
                 (self.cancellations == self.counted_cancellations or not self.is_valid(dt)):
             return False
+        self.cancellation_dates.append(dt)
         self.counted_cancellations += 1
         return True
 
     def is_valid(self, dt: datetime):
-        return self.valid_from <= dt <= self.valid_to
+        return self.valid_from <= dt <= to_day_end(self.valid_to)
 
     def is_exhausted(self):
         return self.is_stub or self.counted_lessons >= self.lessons
@@ -120,12 +124,22 @@ class ActionsLoggerService:
             ))
             users_to_check.append(lesson.user)
 
+        if len(users_to_check) > 1:
+            user_names = [(user.id, user.fullname) for user in users_to_check]
+            await self._users.send_text_message_to_admins(f"В расписании дубликаты: для учеников {user_names} "
+                                                          f"была произведена попытка засчитать урок. "
+                                                          f"Занеси правильный урок вручную.")
+            await self._logger.error("duplicates in schedule", users=user_names)
+            raise RuntimeError(f"duplicates in schedule, users={user_names}")
+
         await self._session.commit()
         await self._logger.info(
             "logged completed lessons",
             lessons=[{"user": lesson.user.unique_name, "lesson_start": lesson.absolute_start_time}
                      for lesson in completed_lessons]
         )
+
+        await self._lesson_counted_notification(users_to_check)
 
         for user in users_to_check:
             subs = await self.count_subscriptions_on_date(user, for_time)
@@ -191,7 +205,7 @@ class ActionsLoggerService:
     async def count_subscriptions_on_date(self, user: User, dt: datetime) -> list[Subscription]:
         query = select(UserActions).where(
             (UserActions.user == user)
-            & UserActions.log_date.between(dt - timedelta(days=90), to_midnight(dt) + timedelta(days=1))
+            & UserActions.log_date.between(dt - timedelta(days=100), to_midnight(dt) + timedelta(days=1))
             ).order_by(UserActions.log_date)
         actions = (await self._session.scalars(query)).all()
 
@@ -209,7 +223,7 @@ class ActionsLoggerService:
         def register_action(subs, action) -> bool:
             for sub in subs:
                 sub: Subscription
-                if not sub.is_valid(action.log_date):
+                if not sub.is_valid(action.log_date) or sub.is_exhausted():
                     continue
 
                 match action.action_type:
@@ -223,8 +237,21 @@ class ActionsLoggerService:
 
         for action in filter(lambda a: a.action_type != UserActionType.SUBSCRIPTION, actions):
             if not register_action(res, action):
-                register_action([stub], action)
+                match action.action_type:
+                    case UserActionType.LESSON:
+                        stub.counted_lessons += 1
+                        stub.lesson_dates.append(action.log_date)
+                    case UserActionType.LESSON_CANCELLATION: stub.counted_cancellations += 1
 
         res.add(stub)
 
         return [v for v in res]
+
+    async def _lesson_counted_notification(self, users_to_check: list[User]):
+        if not users_to_check:
+            return
+        user = users_to_check[0]
+        await self._users.send_text_message_to_admins(
+            f"Прошёл и посчитан урок у ученика {user.fullname}."
+        )
+        pass

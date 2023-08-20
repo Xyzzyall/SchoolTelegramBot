@@ -5,6 +5,9 @@ import structlog
 
 
 def configure_logger(log_file_pattern: str = None):
+    logging.getLogger("telegram").setLevel(logging.WARNING)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+
     timestamper = structlog.processors.TimeStamper(fmt="%Y-%m-%d %H:%M:%S")
     pre_chain = [
         # Add the log level and a timestamp to the event_dict if the log entry

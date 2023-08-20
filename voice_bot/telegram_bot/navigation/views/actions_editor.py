@@ -3,7 +3,7 @@ from datetime import timedelta
 from injector import inject
 
 from voice_bot.db.enums import UserActionType
-from voice_bot.domain.services.actions_logger import ActionsLoggerService
+from voice_bot.domain.services.actions_logger import ActionsLoggerService, Subscription
 from voice_bot.domain.services.users_service import UsersService
 from voice_bot.misc.datetime_service import DatetimeService, dt_fmt, dt_fmt_time, dt_fmt_week, dt_fmt_rus
 from voice_bot.telegram_bot.navigation.base_classes import BaseView, NavigationContext, _ButtonStab
@@ -36,17 +36,36 @@ class ActionsEditorView(BaseView):
                 user = await self.users.get_user_by_id(self.get_view_kwarg("_user_id", False))
                 user_name = f"Ученик {user.fullname}, уроки и отмены за последние 3 месяца:\n\n"
                 now = self.dt.now()
-                actions = await self.actions.get_actions_for_user(user, now - timedelta(days=90), now)
-                for action in actions:
-                    match action.action_type:
-                        case UserActionType.LESSON:
-                            res.append(f"🥕 {dt_fmt_time(action.log_date)} урок")
-                        case UserActionType.LESSON_CANCELLATION:
-                            res.append(f"🥕 {dt_fmt_time(action.log_date)} отмена")
-                        case UserActionType.SUBSCRIPTION:
-                            res.append(f"🎃 {dt_fmt_time(action.log_date)} добавлен абонемент с "
-                                       f"{dt_fmt(action.subs_valid_from)} по {dt_fmt(action.subs_valid_to)} "
-                                       f"на {action.subs_quantity} занятий")
+                subs = await self.actions.count_subscriptions_on_date(user, now)
+                stub_sub: Subscription | None = None
+                for sub in subs:
+                    if sub.is_stub:
+                        stub_sub = sub
+                        continue
+
+                    res.append(f"🎃 Абонемент с {dt_fmt(sub.valid_from)} по {dt_fmt(sub.valid_to)} "
+                               f"на {sub.lessons} занятий")
+                    if sub.counted_lessons:
+                        res.append("Уроки:")
+                        for lesson in sub.lesson_dates:
+                            res.append(f"  🥕 {dt_fmt_time(lesson)}")
+                    if sub.counted_cancellations:
+                        res.append("Отмены:")
+                        for cancellation in sub.cancellation_dates:
+                            res.append(f"  🥕 {dt_fmt_time(cancellation)}")
+                    res.append("")
+
+                if stub_sub.counted_lessons:
+                    res.append("")
+                    res.append(f"💩 Неучтенные занятия:")
+                    for lesson in stub_sub.lesson_dates:
+                        res.append(f"  🥕 {dt_fmt_time(lesson)}")
+
+                if stub_sub.counted_cancellations:
+                    res.append("")
+                    res.append("💩 Неучтенные отмены:")
+                    for cancellation in stub_sub.cancellation_dates:
+                        res.append(f"  🥕 {dt_fmt_time(cancellation)}")
 
                 return user_name + (
                     "\n".join(res) if res else "У ученика нет занятий и отмен.")

@@ -8,7 +8,8 @@ from voice_bot.db.enums import DumpStates
 from voice_bot.db.models import StandardScheduleRecord, User, ScheduleRecord
 from voice_bot.db.shortcuts import is_active
 from voice_bot.db.update_session import UpdateSession
-from voice_bot.misc.datetime_service import DatetimeService, str_hours_from_dt
+from voice_bot.domain.services.users_service import UsersService
+from voice_bot.misc.datetime_service import DatetimeService, str_hours_from_dt, dt_fmt_rus, dt_fmt_time
 from voice_bot.spreadsheets.params_table import ParamsTableService
 from voice_bot.telegram_di_scope import telegramupdate
 
@@ -19,7 +20,9 @@ class ScheduleService:
     def __init__(self,
                  session: UpdateSession,
                  params: ParamsTableService,
-                 dt: DatetimeService):
+                 dt: DatetimeService,
+                 users: UsersService):
+        self.users = users
         self._dt = dt
         self._session = session()
         self._params = params
@@ -81,6 +84,8 @@ class ScheduleService:
             return False
         lesson.dump_state = DumpStates.BOT_DELETED
         await self._session.commit()
+        await self.users.send_text_message_to_admins(
+            f"Урок ученика {lesson.user.fullname} в {dt_fmt_time(lesson.absolute_start_time)} был отменен.")
         return True
 
     async def move_lesson_to(self, lesson: ScheduleRecord, to_date: datetime):
@@ -95,4 +100,8 @@ class ScheduleService:
         lesson1.dump_state = DumpStates.TO_SYNC
         lesson2.dump_state = DumpStates.TO_SYNC
         await self._session.commit()
+        await self.users.send_text_message_to_admins(
+            f"Уроки учеников {lesson1.user.fullname} и {lesson2.user.fullname} поменяны местами, теперь: "
+            f"\n🥕 урок {dt_fmt_time(lesson1.absolute_start_time)} у {lesson1.user.fullname}"
+            f"\n🥕 урок {dt_fmt_time(lesson2.absolute_start_time)} у {lesson2.user.fullname}")
 
