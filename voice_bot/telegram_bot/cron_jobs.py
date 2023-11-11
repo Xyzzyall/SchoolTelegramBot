@@ -3,6 +3,7 @@ from datetime import timedelta, datetime
 
 from voice_bot.telegram_bot.base_handler import BaseScheduleHandler
 from voice_bot.telegram_bot.handlers.cron_daily_cleanup import CronDailyCleanup
+from voice_bot.telegram_bot.handlers.cron_lesson_generator import CronLessonGenerator
 from voice_bot.telegram_bot.handlers.cron_lesson_logger import CronLessonLogger
 from voice_bot.telegram_bot.handlers.cron_lesson_reminder import CronLessonReminder
 from voice_bot.telegram_bot.handlers.cron_spreadsheet_sync import CronSpreadsheetSync
@@ -24,8 +25,13 @@ CRON_JOBS: dict[str, CronJob] = {
     ),
     "spreadsheet_sync": CronJob(
         handler=CronSpreadsheetSync,
-        interval=timedelta(hours=1),
+        interval=timedelta.max,
         first=datetime.utcnow() + timedelta(seconds=10)
+    ),
+    "lessons_generator": CronJob(
+        handler=CronLessonGenerator,
+        interval=timedelta(hours=24),
+        first=datetime(2023, 1, 1, 19, 0)
     ),
     "daily_cleanup": CronJob(
         handler=CronDailyCleanup,

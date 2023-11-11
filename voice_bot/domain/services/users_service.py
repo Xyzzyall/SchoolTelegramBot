@@ -42,6 +42,10 @@ class UsersService:
         return await self._session.scalar(select(User).where(is_active(User) & (User.id == user_id))
                                           .options(subqueryload(User.roles)))
 
+    async def get_user_by_unique_name(self, unique_name: str) -> User | None:
+        return await self._session.scalar(select(User).where(is_active(User) & (User.unique_name == unique_name))
+                                          .options(subqueryload(User.roles)))
+
     async def get_user_by_tg_id(self, chat_id: str) -> User | None:
         return await self._session.scalar(select(User).where(is_active(User) & (User.telegram_chat_id == chat_id))
                                           .options(subqueryload(User.roles)))

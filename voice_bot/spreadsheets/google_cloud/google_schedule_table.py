@@ -15,8 +15,8 @@ class GoogleScheduleTableService(ScheduleTableService):
     def __init__(self, gspread: GspreadClient):
         self._gspread = gspread
 
-    async def get_standard_schedule(self) -> dict[str, list[SpreadsheetScheduleRecord]]:
-        return await self._get_schedule_from_table(self.STANDARD_SCHEDULE_TABLE_NAME)
+    async def get_standard_schedule(self) -> list[SpreadsheetScheduleRecord]:
+        return await self._get_schedule_from_table_nocache(self.STANDARD_SCHEDULE_TABLE_NAME, get_dict=False)
 
     @simplecache("google_schedule", timedelta(minutes=60))
     async def _get_schedule_from_table(
@@ -189,9 +189,16 @@ class GoogleScheduleTableService(ScheduleTableService):
                                       hours=min_time.hour, minutes=min_time.minute, seconds=min_time.second)
         saturday = monday + timedelta(days=7)
 
+        existing = await self._get_all_schedule_sheet_names()
+
         for _ in range(weeks):
+            table_name = self.generate_table_name(monday)
+
+            if table_name not in existing:
+                await self.create_schedule_sheet_for_week(monday)
+
             await self._rewrite_schedule_table(
-                self.generate_table_name(monday),
+                table_name,
                 self._put_records_into_table_layout(
                     filter(
                         lambda x: (monday <= (x.absolute_start_time or datetime.max) <= saturday) and not x.to_delete,

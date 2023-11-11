@@ -61,7 +61,7 @@ class StudentCancelLessonView(TextView):
             case _:
                 user = self._context.authorized_user
                 now = self._dt.now() + timedelta(hours=24)
-                lessons = await self._schedule.get_schedule_for(now, now + timedelta(days=14), user)
+                lessons = await self._schedule.get_schedule_for(now, now + timedelta(days=30), user)
                 for i, lesson in enumerate(lessons):
                     self._msg.push_schedule(lesson)
                     res["_" + str(lesson.id)] = _ButtonStab(

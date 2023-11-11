@@ -18,6 +18,10 @@ def to_day_end(dt: datetime) -> datetime:
     return to_midnight(dt) + timedelta(hours=23, minutes=59, seconds=59)
 
 
+def to_monday_midnight(dt: datetime) -> datetime:
+    return to_midnight(dt) - timedelta(days=dt.weekday())
+
+
 def dt_fmt(dt: datetime) -> str:
     return dt.strftime("%d.%m.%y")
 
@@ -37,6 +41,11 @@ def dt_fmt_week(monday: datetime) -> str:
 def day_with_str_hours(day: datetime, time: str) -> datetime:
     split = time.split(":")
     return to_midnight(day) + timedelta(hours=int(split[0]), minutes=int(split[1]))
+
+
+def td_days_and_str_hours(days: int, time: str) -> timedelta:
+    split = time.split(":")
+    return timedelta(days=days, hours=int(split[0]), minutes=int(split[1]))
 
 
 def str_hours_from_dt(dt: datetime) -> str:

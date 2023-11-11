@@ -15,7 +15,7 @@ class ScheduleTableService(_DumpedTable[SpreadsheetScheduleRecord], ABC):
         pass
 
     @abstractmethod
-    async def get_standard_schedule(self) -> dict[str, list[SpreadsheetScheduleRecord]]:
+    async def get_standard_schedule(self) -> list[SpreadsheetScheduleRecord]:
         pass
 
     @abstractmethod

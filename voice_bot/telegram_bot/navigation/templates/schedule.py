@@ -2,6 +2,7 @@ from voice_bot.domain.claims.shortcuts import CLAIM_STUDENT, CLAIM_SCHEDULE
 from voice_bot.telegram_bot.navigation.actions.set_reminder import SetReminder
 from voice_bot.telegram_bot.navigation.base_classes import _TreeEntry
 from voice_bot.telegram_bot.navigation.views.book_lesson import StudentBookLesson, AdminBookLesson
+from voice_bot.telegram_bot.navigation.views.cancel_day import CancelDayView
 from voice_bot.telegram_bot.navigation.views.cancel_lesson import StudentCancelLessonView, AdminCancelLessonView
 from voice_bot.telegram_bot.navigation.views.lesson_swap import LessonSwapView
 from voice_bot.telegram_bot.navigation.views.next_lesson import NextLesson
@@ -161,10 +162,23 @@ ADMIN_SCHEDULE = _TreeEntry(
                 )
             }
         ),
-        "cancel_lesson": _TreeEntry(
-            element_type=AdminCancelLessonView,
+        "cancel_lesson_menu": _TreeEntry(
+            element_type=TextView,
+            text_template="Отмена занятий",
             title="Отмена занятий",
             position=(30, 0),
+            children={
+                "cancel_lesson": _TreeEntry(
+                    element_type=AdminCancelLessonView,
+                    title="Отмена конкретного занятия",
+                    position=(10, 0),
+                ),
+                "cancel_on_day": _TreeEntry(
+                    element_type=CancelDayView,
+                    title="Отменить все занятия в день",
+                    position=(20, 0),
+                )
+            }
         ),
         "book_lesson": _TreeEntry(
             element_type=AdminBookLesson,

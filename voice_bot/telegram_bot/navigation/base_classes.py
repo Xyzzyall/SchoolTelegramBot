@@ -113,6 +113,10 @@ class BaseView(BaseNavigation, ABC):
     def set_view_kwarg(self, key: str, val: any):
         self.nav_context.kwargs[key] = val
 
+    def close(self):
+        self.erase_view_kwargs()
+        self.nav_context.tree_path.pop()
+
 
 class BaseRootView(BaseView, ABC):
     async def get_view_buttons(self) -> dict[str, _ButtonStab]:

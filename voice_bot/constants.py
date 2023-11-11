@@ -27,3 +27,5 @@ DAYS_OF_THE_WEEK = [
     "суббота",
     "воскресенье"
 ]
+
+LESSONS_THRESHOLD = timedelta(days=30)

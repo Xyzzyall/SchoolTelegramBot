@@ -6,6 +6,7 @@ import structlog
 from injector import inject
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload, subqueryload
+from typing_extensions import deprecated
 
 from voice_bot.db.enums import DumpStates, ScheduleRecordType, YesNo
 from voice_bot.db.models import User, StandardScheduleRecord, ScheduleRecord, UserRole
@@ -14,7 +15,7 @@ from voice_bot.domain.services.alarm_service import AlarmService
 from voice_bot.domain.services.book_lesson_service import FreeLesson, BookLessonsService
 from voice_bot.domain.services.cache_service import CacheService
 from voice_bot.domain.services.users_service import UsersService
-from voice_bot.misc.datetime_service import DatetimeService
+from voice_bot.misc.datetime_service import DatetimeService, td_days_and_str_hours
 from voice_bot.spreadsheets.admins_table import AdminsTableService
 from voice_bot.spreadsheets.models.spreadsheet_admin import SpreadsheetAdmin
 from voice_bot.spreadsheets.models.spreadsheet_schedule_record import SpreadsheetScheduleRecord
@@ -95,6 +96,46 @@ class SpreadsheetSyncService:
         self._schedule_merge: dict[str, _ScheduleDto] = {}
 
         self._free_lessons: list[FreeLesson] = []
+
+    async def sync_only_users(self):
+        self._table_users = await self._users.dump_records()
+        self._table_admins = await self._admins.dump_records()
+        self._bot_users = (await self._session.scalars(_ALL_USERS_STMT)).all()
+        await self._sync_users()
+        await self.rewrite_bot_std_schedule()
+        await self._session.commit()
+        await self._users.rewrite_all_records(self._table_users)
+        await self._admins.rewrite_all_records(self._table_admins)
+        self._cache.clear_claims_cache()
+
+    async def rewrite_bot_std_schedule(self):
+        bot = (await self._session.scalars(_ALL_STD_SCHEDULE_STMT)).all()
+        std = await self._schedule_table.get_standard_schedule()
+
+        table: dict[timedelta, SpreadsheetScheduleRecord] = \
+            {td_days_and_str_hours(rec.day_of_the_week - 1, rec.time_start): rec for rec in std}
+
+        for bot_rec in bot:
+            key = td_days_and_str_hours(bot_rec.day_of_the_week, bot_rec.time_start)
+            if key not in table:
+                await self._session.delete(bot_rec)
+            else:
+                del table[key]
+
+        for new in table.values():
+            user = await self._bot_users_service.get_user_by_unique_name(new.user_id)
+            if not user:
+                await self._bot_users_service.send_text_message_to_admins(
+                    f"Не удалось найти ученика {new.user_id}, проверь корректность стандартного расписания.")
+                continue
+            self._session.add(StandardScheduleRecord(
+                user=user,
+                day_of_the_week=new.day_of_the_week-1,
+                time_start=new.time_start,
+                time_end=new.time_end,
+                type=ScheduleRecordType.OFFLINE,
+                dump_state=DumpStates.ACTIVE
+            ))
 
     async def perform_sync(self):
         self._users_merge = {}

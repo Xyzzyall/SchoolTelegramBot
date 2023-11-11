@@ -121,7 +121,7 @@ class CmdXxx(BaseUpdateHandler):
 
     async def _perform_sync(self, update: Update):
         self._cache.clear_all_cache()
-        await self._sync.perform_sync()
+        await self._sync.sync_only_users()
         await update.effective_message.reply_text("готово")
 
     async def _turn_on_day_reminders(self, update: Update):

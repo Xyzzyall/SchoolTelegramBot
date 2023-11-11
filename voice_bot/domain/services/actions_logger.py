@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from functools import reduce
 
 import structlog
 from injector import inject
@@ -9,6 +10,7 @@ from sqlalchemy.orm import joinedload
 
 from voice_bot.db.enums import UserActionType
 from voice_bot.db.models import User, UserActions, ScheduleRecord
+from voice_bot.db.shortcuts import is_active
 from voice_bot.db.update_session import UpdateSession
 from voice_bot.domain.services.users_service import UsersService
 from voice_bot.misc.datetime_service import DatetimeService, to_midnight, to_day_end
@@ -110,7 +112,7 @@ class ActionsLoggerService:
         from_time = for_time - timedelta(hours=1, minutes=15)
         to_time = for_time - timedelta(minutes=15)
         query = select(ScheduleRecord)\
-            .where(ScheduleRecord.absolute_start_time.between(from_time, to_time))\
+            .where(ScheduleRecord.absolute_start_time.between(from_time, to_time) & is_active(ScheduleRecord))\
             .options(joinedload(ScheduleRecord.user))
 
         users_to_check: list[User] = []
@@ -143,13 +145,20 @@ class ActionsLoggerService:
 
         for user in users_to_check:
             subs = await self.count_subscriptions_on_date(user, for_time)
+            one_lesson_subs = True
             non_valid_subs = 0
             for s in subs:
+                one_lesson_subs &= s.is_stub or s.lessons == 1
                 if s.is_exhausted() or not s.is_valid(for_time):
                     non_valid_subs += 1
 
             if non_valid_subs == len(subs):
                 await self._users.send_text_message_to_admins(f"У ученика {user.fullname} кончился абонемент!")
+                if not one_lesson_subs:
+                    await self._users.send_text_message(
+                        user,
+                        f"Привет! Похоже, у тебя закончился абонемент 🤔\n"
+                        f"Это не так? напиши Ане, разберемся.")
 
     async def log_subscription(
             self,
@@ -205,7 +214,7 @@ class ActionsLoggerService:
     async def count_subscriptions_on_date(self, user: User, dt: datetime) -> list[Subscription]:
         query = select(UserActions).where(
             (UserActions.user == user)
-            & UserActions.log_date.between(dt - timedelta(days=100), to_midnight(dt) + timedelta(days=1))
+            & UserActions.log_date.between(dt - timedelta(days=120), to_midnight(dt) + timedelta(days=1))
             ).order_by(UserActions.log_date)
         actions = (await self._session.scalars(query)).all()
 
@@ -221,6 +230,11 @@ class ActionsLoggerService:
                 ))
 
         def register_action(subs, action) -> bool:
+            oldest_sub_valid_from = subs[0].valid_from if subs else datetime.min
+
+            if action.log_date <= oldest_sub_valid_from:
+                return True
+
             for sub in subs:
                 sub: Subscription
                 if not sub.is_valid(action.log_date) or sub.is_exhausted():
