@@ -94,7 +94,9 @@ class ScheduleService:
     # no commit
     async def clean_up_elder_lessons(self, on_date: datetime) -> int:
         monday = to_monday_midnight(on_date)
-        lessons = await self.get_schedule(datetime.min, monday)
+
+        query = select(ScheduleRecord).where(ScheduleRecord.absolute_start_time.between(datetime.min, monday))
+        lessons = (await self._session.scalars(query)).all()
 
         for lesson in lessons:
             await self._session.delete(lesson)

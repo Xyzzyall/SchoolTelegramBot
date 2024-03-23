@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 
 import structlog
 from injector import inject
@@ -31,18 +32,27 @@ class BookLessonsService:
             return None
 
         free = free_lessons[time_start]
-        new_record = ScheduleRecord(
-            user=user,
-            absolute_start_time=dt,
-            time_start=free.time_start,
-            time_end=free.time_end,
-            type=ScheduleRecordType.OFFLINE,
-            dump_state=DumpStates.TO_SYNC
-        )
-        self._session.add(new_record)
+
+        query = select(ScheduleRecord).where(ScheduleRecord.absolute_start_time == dt)
+        lesson = await self._session.scalar(query)
+
+        if lesson:
+            lesson.user_id = user.id
+            lesson.dump_state = DumpStates.TO_SYNC
+        else:
+            lesson = ScheduleRecord(
+                user=user,
+                absolute_start_time=dt,
+                time_start=free.time_start,
+                time_end=free.time_end,
+                type=ScheduleRecordType.OFFLINE,
+                dump_state=DumpStates.TO_SYNC
+            )
+            self._session.add(lesson)
+
         await self._session.commit()
         await self.users.send_text_message_to_admins(f"Ученик {user.fullname} успешно записан на {dt_fmt_time(dt)}")
-        return new_record
+        return lesson
 
     async def move_lesson(self, lesson: ScheduleRecord, dt: datetime) -> ScheduleRecord:
         # will stay before I delete google spreadsheets integration
@@ -54,7 +64,8 @@ class BookLessonsService:
             f"{dt_fmt_time(lesson.absolute_start_time)} на {dt_fmt_time(dt)}")
         return new_lesson
 
-    async def get_free_lessons(self, on_day: datetime, show_vacant: bool = True) -> dict[str, FreeLesson]:
+    async def get_free_lessons(self, on_day: datetime, show_vacant: bool = True) \
+            -> dict[str, (FreeLesson, ScheduleRecord)]:
         queue = select(FreeLesson)\
             .where((FreeLesson.weekday == on_day.weekday()) & (FreeLesson.is_active == YesNo.YES))
 

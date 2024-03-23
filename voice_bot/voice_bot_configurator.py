@@ -21,7 +21,7 @@ class VoiceBotConfigurator:
 
         self._injector = injector
 
-        with open(configs_path) as file:
+        with open(configs_path, 'r') as file:
             configs = json.load(file)
 
             self.telegram_bot_token = configs["telegram_token"]

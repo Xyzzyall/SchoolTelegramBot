@@ -26,9 +26,16 @@ class SubscriptionTemplate:
     def __str__(self):
         return f"{self.lessons} уроков, {self.cancellations} отмен на {int(self.timespan.days / 7)} недель"
 
+    def multiply(self, mult: int) -> "SubscriptionTemplate":
+        if mult <= 1:
+            return self
+        return SubscriptionTemplate(
+            mult * self.lessons,
+            mult * self.cancellations,
+            mult * self.timespan + timedelta(days=(mult-1) * 7))
+
 
 SUBSCRIPTIONS = [
-    SubscriptionTemplate(1, 0, timedelta(days=3)),
     SubscriptionTemplate(4, 2, timedelta(days=7*5)),
     SubscriptionTemplate(8, 2, timedelta(days=7*6)),
     SubscriptionTemplate(20, 4, timedelta(days=7*10)),
@@ -214,7 +221,7 @@ class ActionsLoggerService:
     async def count_subscriptions_on_date(self, user: User, dt: datetime) -> list[Subscription]:
         query = select(UserActions).where(
             (UserActions.user == user)
-            & UserActions.log_date.between(dt - timedelta(days=120), to_midnight(dt) + timedelta(days=1))
+            & UserActions.log_date.between(dt - timedelta(days=180), to_midnight(dt) + timedelta(days=30))
             ).order_by(UserActions.log_date)
         actions = (await self._session.scalars(query)).all()
 
@@ -261,6 +268,23 @@ class ActionsLoggerService:
 
         return [v for v in res]
 
+    async def users_with_empty_subscriptions(self, on_date: datetime) -> list[User]:
+        users = await self._users.get_all_regular_users()
+
+        result = []
+        for user in users:
+            subs = await self.count_subscriptions_on_date(user, on_date)
+            all_empty = True
+            for sub in subs:
+                if not sub.is_exhausted():
+                    all_empty = False
+                    break
+
+            if all_empty:
+                result.append(user)
+
+        return result
+
     async def _lesson_counted_notification(self, users_to_check: list[User]):
         if not users_to_check:
             return
@@ -268,4 +292,3 @@ class ActionsLoggerService:
         await self._users.send_text_message_to_admins(
             f"Прошёл и посчитан урок у ученика {user.fullname}."
         )
-        pass

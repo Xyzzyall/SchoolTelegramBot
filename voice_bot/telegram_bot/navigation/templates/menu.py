@@ -4,7 +4,7 @@ from voice_bot.telegram_bot.navigation.templates import _wrap
 from voice_bot.telegram_bot.navigation.templates.help import HELP
 from voice_bot.telegram_bot.navigation.templates.schedule import STUDENT_SCHEDULE, ADMIN_SCHEDULE
 from voice_bot.telegram_bot.navigation.templates.settings import SETTINGS
-from voice_bot.telegram_bot.navigation.templates.subsriptions import ACTION_LOGS, STUDENT_SUBS
+from voice_bot.telegram_bot.navigation.templates.subscriptions import ACTION_LOGS, STUDENT_SUBS
 from voice_bot.telegram_bot.navigation.views.text_view import TextView
 
 UNKNOWN_USER_MENU = _TreeEntry(

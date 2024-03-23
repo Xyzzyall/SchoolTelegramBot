@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, List
 
-from sqlalchemy import String, ForeignKey, Enum, Integer
+from sqlalchemy import String, ForeignKey, Enum, Integer, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from voice_bot.db.base_model import BaseModel
@@ -146,7 +146,7 @@ class ScheduleRecord(BaseModel):
     )
     user_id: Mapped[int] = mapped_column(ForeignKey("USERS.id"), init=False)
 
-    absolute_start_time: Mapped[datetime]
+    absolute_start_time: Mapped[datetime] = mapped_column()
     time_start: Mapped[str] = mapped_column(String(16))
     time_end: Mapped[str] = mapped_column(String(16))
 
@@ -159,6 +159,10 @@ class ScheduleRecord(BaseModel):
     dump_state: Mapped[DumpStates] = mapped_column(Enum(DumpStates))
     updated_on: Mapped[datetime] = mapped_column(onupdate=datetime.now, default_factory=datetime.now)
     created_on: Mapped[datetime] = mapped_column(default_factory=datetime.now)
+
+    __table_args__ = (
+        Index('unique_absolute_start_time', absolute_start_time,
+              unique=True),)
 
 
 class FreeLesson(BaseModel):
