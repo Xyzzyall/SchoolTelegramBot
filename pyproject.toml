@@ -4,6 +4,7 @@ version = "0.1.0"
 description = ""
 authors = ["xyzzy <xyzzyall@outlook.com>"]
 readme = "README.md"
+packages = [{ include = "voice_bot" }]
 
 [tool.poetry.dependencies]
 python = "^3.12"

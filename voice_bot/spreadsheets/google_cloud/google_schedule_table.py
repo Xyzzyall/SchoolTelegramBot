@@ -230,7 +230,7 @@ class GoogleScheduleTableService(ScheduleTableService):
     async def _rewrite_schedule_table(self, sheet_name: str, content: list[list[str]], monday: datetime | None = None):
         worksheet = await self._gspread.get_schedule_worksheet(sheet_name)
         update = [{
-            'range': 'B3:H14',
+            'range': 'B3:H' + str(2 + len(content)),
             'values': content,
         }]
         if monday:
